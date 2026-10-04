@@ -2,7 +2,7 @@ import { BrowserRouter, Link, Navigate, Outlet, Route, Routes, useLocation } fro
 import AppLayout from './components/AppLayout.jsx'
 import { Spinner } from './components/ui.jsx'
 import { AuthProvider, useAuth } from './lib/auth.jsx'
-import { AuthCallback, ForgotPassword, SetPassword, Signup } from './pages/AuthPages.jsx'
+import { AuthCallback, ForgotPassword, Signup } from './pages/AuthPages.jsx'
 import { HistoryDetail, HistoryList } from './pages/HistoryPages.jsx'
 import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
@@ -52,7 +52,6 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/set-password" element={<SetPassword />} />
           </Route>
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route element={<RequireAuth />}>

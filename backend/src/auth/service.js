@@ -116,17 +116,10 @@ export async function verifyEmailCode(rawEmail, code) {
   return { setupToken, expiresIn: "15m" };
 }
 
-/**
- * Step 3: set the password, then log in. Accepts either token:
- *  - "setup" from /verify-email: creates the account, or updates it on reset
- *  - "google-setup" from Google sign-in: adds the first password to a Google account
- */
+/** Step 3: set the password, then log in. Creates the account, or updates it on reset. */
 export async function setPassword(setupToken, password, name) {
-  const payload = verifyToken(setupToken, ["setup", "google-setup"]);
+  const { sub: verificationId, email } = verifyToken(setupToken, "setup");
   validatePassword(password);
-  if (payload.typ === "google-setup") return setFirstPasswordForGoogleUser(payload.sub, password, name);
-
-  const { sub: verificationId, email } = payload;
 
   // Mark the verification used in the same statement that checks it, so a token works once.
   const { rowCount } = await query(
@@ -147,19 +140,6 @@ export async function setPassword(setupToken, password, name) {
      RETURNING ${PUBLIC_USER}`,
     [email, cleanName(name), passwordHash]
   );
-  return session(rows[0]);
-}
-
-async function setFirstPasswordForGoogleUser(userId, password, name) {
-  const passwordHash = await hashPassword(password);
-  // Only succeeds while the account has no password, so the token can't be reused to change it.
-  const { rows } = await query(
-    `UPDATE users SET password_hash = $2, name = COALESCE(name, $3), last_login_at = now(), updated_at = now()
-      WHERE id = $1 AND password_hash IS NULL
-     RETURNING ${PUBLIC_USER}`,
-    [userId, passwordHash, cleanName(name)]
-  );
-  if (!rows[0]) throw httpError(409, "A password is already set for this account. Please log in.");
   return session(rows[0]);
 }
 

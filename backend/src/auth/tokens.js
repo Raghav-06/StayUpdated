@@ -22,11 +22,6 @@ export function signSetupToken(verificationId, email) {
   return jwt.sign({ typ: "setup", email }, secret(), { subject: verificationId, expiresIn: SETUP_TOKEN_TTL });
 }
 
-// Issued after Google sign-in when the account has no password yet; only usable to set one.
-export function signGoogleSetupToken(userId, email) {
-  return jwt.sign({ typ: "google-setup", email }, secret(), { subject: userId, expiresIn: "30m" });
-}
-
 // `typ` may be a single token type or a list of accepted types.
 export function verifyToken(token, typ) {
   let payload;
