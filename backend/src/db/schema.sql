@@ -1,0 +1,46 @@
+-- Applied on every server start; every statement must be idempotent.
+
+CREATE TABLE IF NOT EXISTS users (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email             TEXT NOT NULL,
+  name              TEXT,
+  avatar_url        TEXT,
+  password_hash     TEXT,               -- NULL for accounts that only sign in with Google
+  google_id         TEXT UNIQUE,        -- NULL for accounts that never used Google
+  email_verified_at TIMESTAMPTZ NOT NULL,
+  last_login_at     TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (lower(email));
+
+-- One row per code emailed. A code is first "verified" (correct code entered), then
+-- "used" (password set with it). Only a hash of the code is stored.
+CREATE TABLE IF NOT EXISTS email_verifications (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email       TEXT NOT NULL,
+  code_hash   TEXT NOT NULL,
+  attempts    INTEGER NOT NULL DEFAULT 0,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  verified_at TIMESTAMPTZ,
+  used_at     TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS email_verifications_email_idx ON email_verifications (lower(email), created_at DESC);
+
+CREATE TABLE IF NOT EXISTS news_searches (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  topic           TEXT NOT NULL,
+  params          JSONB NOT NULL DEFAULT '{}',
+  summary         TEXT,
+  sources         JSONB NOT NULL DEFAULT '[]',
+  provider_status JSONB NOT NULL DEFAULT '{}',
+  stats           JSONB NOT NULL DEFAULT '{}',
+  models          JSONB NOT NULL DEFAULT '{}',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS news_searches_user_idx ON news_searches (user_id, created_at DESC);
