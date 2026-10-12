@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 import { Router } from "express";
 import { query } from "../db/index.js";
 import { requireAuth } from "../middleware/auth.js";
+import { aiLimiter } from "../middleware/aiLimiter.js";
+import { answerQuestion } from "../news/questions.js";
 import { runSearch } from "../news/searches.js";
 import { DEFAULT_REGION, isRegion } from "../news/regions.js";
 import { httpError } from "../utils/httpError.js";
@@ -83,13 +85,54 @@ router.get("/history", async (req, res) => {
   res.json({ searches: rows, limit, offset });
 });
 
+// Everything except the stored source context, which is only used to answer questions.
+const SEARCH_COLUMNS = `id, topic, params, summary, sources, provider_status, stats, models, share_id, created_at,
+  (context IS NOT NULL) AS has_context`;
+
 router.get("/history/:id", async (req, res) => {
   const { rows } = await query(
-    "SELECT * FROM news_searches WHERE id = $1 AND user_id = $2",
+    `SELECT ${SEARCH_COLUMNS} FROM news_searches WHERE id = $1 AND user_id = $2`,
     [requireUuid(req.params.id), req.user.id]
   );
   if (!rows[0]) throw httpError(404, "Search not found");
   res.json(rows[0]);
+});
+
+async function findOwnSearch(req, columns = "*") {
+  const { rows } = await query(
+    `SELECT ${columns} FROM news_searches WHERE id = $1 AND user_id = $2`,
+    [requireUuid(req.params.id), req.user.id]
+  );
+  if (!rows[0]) throw httpError(404, "Search not found");
+  return rows[0];
+}
+
+router.get("/history/:id/questions", async (req, res) => {
+  const search = await findOwnSearch(req, "id");
+  const { rows } = await query(
+    "SELECT id, question, answer, created_at FROM search_questions WHERE search_id = $1 ORDER BY created_at",
+    [search.id]
+  );
+  res.json({ questions: rows });
+});
+
+// Answers a follow-up question from the search's sources, streamed as server-sent events:
+// delta {delta} per token, then done {id, question, answer, created_at, limited} or error.
+router.post("/history/:id/ask", aiLimiter, async (req, res) => {
+  const question = requireString(req.body, "question");
+  if (question.length < 3 || question.length > 500) throw httpError(400, "Questions must be 3 to 500 characters");
+  const search = await findOwnSearch(req, "id, topic, sources, context");
+
+  await streamEvents(res, async (send, signal) => {
+    const saved = await answerQuestion({
+      search,
+      userId: req.user.id,
+      question,
+      onDelta: (delta) => send("delta", { delta }),
+      signal,
+    });
+    send("done", saved);
+  });
 });
 
 // Creates (or returns the existing) public read-only link for a search.

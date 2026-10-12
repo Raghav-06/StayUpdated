@@ -107,8 +107,8 @@ function Rejected({ items }) {
 
 /**
  * Shows a search result: either straight from /news/search or a saved row from history.
- * `readOnly` is the public shared view (no history-specific details); `afterSummary` is
- * rendered right under the summary panel.
+ * `readOnly` is the public shared view (no history-specific details); `afterSummary(cite)` is
+ * rendered right under the summary panel, with the function that jumps to a source card.
  */
 export function ResultView({ result, readOnly = false, afterSummary = null }) {
   const sources = useMemo(() => result.sources ?? [], [result.sources])
@@ -186,7 +186,7 @@ export function ResultView({ result, readOnly = false, afterSummary = null }) {
         )}
       </section>
 
-      {afterSummary}
+      {afterSummary?.(cite)}
 
       {sources.length > 0 && (
         <section>

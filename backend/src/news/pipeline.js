@@ -13,6 +13,8 @@ const DUPLICATE_SIMILARITY = 0.92;
 const PROMPT_CHARS = { article: 1500, post: 400, video: 400, reference: 800 };
 
 const MIN_RELEVANCE = Number(process.env.NEWS_MIN_RELEVANCE ?? 0.35);
+// How much of the summary's source text is kept for follow-up questions.
+const MAX_SAVED_CONTEXT_CHARS = 12000;
 
 // Stops handing out new items once `signal` is aborted.
 async function mapWithConcurrency(items, limit, fn, signal) {
@@ -315,6 +317,7 @@ export async function getTopicNews(
   return {
     topic,
     summary: summary.trim(),
+    context: context.slice(0, MAX_SAVED_CONTEXT_CHARS),
     sources,
     rejected,
     providerStatus,

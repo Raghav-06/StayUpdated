@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { rateLimit } from "express-rate-limit";
 import {
   explainTopic,
   explainShortAndDetailed,
@@ -12,6 +11,7 @@ import authRouter from "./auth.js";
 import newsRouter from "./news.js";
 import publicRouter from "./public.js";
 import { requireAuth } from "../middleware/auth.js";
+import { aiLimiter } from "../middleware/aiLimiter.js";
 import { requireString } from "./validate.js";
 
 const router = Router();
@@ -21,13 +21,6 @@ router.use("/news", newsRouter);
 router.use("/public", publicRouter);
 
 // The AI routes spend LLM credits: signed-in users only, and a per-user budget.
-const aiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 30,
-  keyGenerator: (req) => req.user.id,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-});
 router.use(["/chains", "/tools", "/agent"], requireAuth, aiLimiter);
 
 // --- Chains ---

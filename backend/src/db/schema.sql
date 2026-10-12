@@ -54,3 +54,18 @@ CREATE INDEX IF NOT EXISTS news_searches_cache_idx ON news_searches (cache_key, 
 
 -- Set while the search has a public read-only link (/s/<share_id>).
 ALTER TABLE news_searches ADD COLUMN IF NOT EXISTS share_id TEXT UNIQUE;
+
+-- The source text the summary was written from, so follow-up questions use the same material.
+ALTER TABLE news_searches ADD COLUMN IF NOT EXISTS context TEXT;
+
+-- Follow-up questions about a search, answered from its sources.
+CREATE TABLE IF NOT EXISTS search_questions (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  search_id   UUID NOT NULL REFERENCES news_searches(id) ON DELETE CASCADE,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  question    TEXT NOT NULL,
+  answer      TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS search_questions_search_idx ON search_questions (search_id, created_at);

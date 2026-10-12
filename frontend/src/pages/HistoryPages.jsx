@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { AskBox } from '../components/AskBox.jsx'
 import { ResultView } from '../components/ResultView.jsx'
 import { SearchProgress } from '../components/SearchProgress.jsx'
 import { ShareMenu } from '../components/ShareMenu.jsx'
@@ -184,7 +185,22 @@ export function HistoryDetail() {
           <Spinner size={26} />
         </div>
       )}
-      {result && !progress && <ResultView key={id} result={result} />}
+      {result && !progress && (
+        <ResultView
+          key={id}
+          result={result}
+          afterSummary={(cite) =>
+            result.summary && (
+              <AskBox
+                searchId={id}
+                sourceCount={result.sources?.length ?? 0}
+                limited={result.has_context === false}
+                onCite={cite}
+              />
+            )
+          }
+        />
+      )}
     </div>
   )
 }

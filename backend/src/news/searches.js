@@ -24,7 +24,7 @@ export function cacheKeyFor(topic, { region, maxAgeDays, maxSources, maxPosts, m
 async function findCached(cacheKey) {
   if (!(CACHE_MINUTES > 0)) return null;
   const { rows } = await query(
-    `SELECT summary, sources, provider_status, stats, models, created_at
+    `SELECT summary, context, sources, provider_status, stats, models, created_at
        FROM news_searches
       WHERE cache_key = $1 AND created_at > now() - make_interval(mins => $2)
         AND NOT COALESCE((stats->>'cached')::boolean, false)
@@ -36,8 +36,8 @@ async function findCached(cacheKey) {
 
 async function insertSearch(userId, topic, params, result, cacheKey) {
   const { rows } = await query(
-    `INSERT INTO news_searches (user_id, topic, params, summary, sources, provider_status, stats, models, cache_key)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO news_searches (user_id, topic, params, summary, sources, provider_status, stats, models, cache_key, context)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING id, created_at`,
     [
       userId,
@@ -49,6 +49,7 @@ async function insertSearch(userId, topic, params, result, cacheKey) {
       result.stats ?? {},
       result.models ?? {},
       cacheKey,
+      result.context ?? null,
     ]
   );
   return rows[0];
@@ -90,7 +91,9 @@ export async function runSearch({ userId, topic, params, force = false, previous
   const save = async (result) => {
     const final = previous ? markNew(result, previous) : result;
     const saved = await insertSearch(userId, topic, params, final, cacheKey);
-    return { id: saved.id, createdAt: saved.created_at, params, ...final };
+    // The context is only stored for follow-up questions; clients don't need it.
+    const { context, ...response } = final;
+    return { id: saved.id, createdAt: saved.created_at, params, ...response };
   };
 
   if (cacheKey && !force) {
@@ -101,6 +104,7 @@ export async function runSearch({ userId, topic, params, force = false, previous
       return save({
         topic,
         summary: cached.summary,
+        context: cached.context,
         sources: cached.sources.map(({ isNew, ...s }) => s),
         rejected: [],
         providerStatus: cached.provider_status,

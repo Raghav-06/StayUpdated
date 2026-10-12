@@ -862,6 +862,37 @@ input[type='range'] { accent-color: var(--accent); width: 100%; margin: 10px 0 0
 .rejected-list li { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--surface); font-size: 0.86rem; }
 .rejected-list a { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ============ Ask about this ============ */
+.ask-panel { padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; }
+.ask-panel .panel-title { margin-bottom: 0; }
+.qa { display: flex; flex-direction: column; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--border); animation: fadeUp 0.25s ease; }
+.qa-question {
+  align-self: flex-end;
+  max-width: 85%;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: var(--text-strong);
+  font-size: 0.92rem;
+}
+.qa-answer .summary { font-size: 0.95rem; line-height: 1.65; }
+.qa-answer .summary > :last-child { margin-bottom: 0; }
+.qa.streaming .summary > p:last-child::after,
+.qa.streaming .summary > ul:last-child > li:last-child::after {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  margin-left: 3px;
+  vertical-align: -2px;
+  background: var(--accent);
+  animation: blink 1s steps(2) infinite;
+}
+.ask-form { display: flex; gap: 8px; }
+.ask-form .btn { height: 44px; padding: 0 14px; }
+
 /* ============ Menus ============ */
 .menu-wrap { position: relative; }
 .menu {
