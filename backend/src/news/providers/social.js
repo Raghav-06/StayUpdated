@@ -5,12 +5,13 @@ import { regionSettings } from "../regions.js";
 // Hacker News (Algolia API, no key). Link posts point at real articles we can read.
 export const hackerNews = {
   name: "hacker-news",
-  async search(topic, { limit, maxAgeDays }) {
+  async search(topic, { limit, maxAgeDays, signal }) {
     const since = Math.floor(Date.now() / 1000) - maxAgeDays * 86400;
     const data = await fetchJson(
       "https://hn.algolia.com/api/v1/search" +
         `?query=${encodeURIComponent(topic)}&tags=story&hitsPerPage=${limit}` +
-        `&numericFilters=created_at_i>${since}`
+        `&numericFilters=created_at_i>${since}`,
+      { signal }
     );
     return (data.hits ?? []).map((h) => {
       const discussion = `https://news.ycombinator.com/item?id=${h.objectID}`;
@@ -24,11 +25,11 @@ export const hackerNews = {
 // Mastodon public hashtag timeline (no key). "electric vehicles" -> #electricvehicles
 export const mastodon = {
   name: "mastodon",
-  async search(topic, { limit }) {
+  async search(topic, { limit, signal }) {
     const tag = topic.toLowerCase().replace(/[^a-z0-9]/g, "");
     if (!tag) return [];
     const instance = process.env.MASTODON_INSTANCE || "https://mastodon.social";
-    const statuses = await fetchJson(`${instance}/api/v1/timelines/tag/${tag}?limit=${Math.min(limit, 40)}`);
+    const statuses = await fetchJson(`${instance}/api/v1/timelines/tag/${tag}?limit=${Math.min(limit, 40)}`, { signal });
     return statuses
       .filter((s) => !s.sensitive && (!s.language || s.language === "en"))
       .map((s) => {
@@ -65,11 +66,11 @@ async function getRedditToken() {
 export const reddit = {
   name: "reddit",
   requires: ["REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET"],
-  async search(topic, { limit, maxAgeDays }) {
+  async search(topic, { limit, maxAgeDays, signal }) {
     const t = maxAgeDays <= 1 ? "day" : maxAgeDays <= 7 ? "week" : "month";
     const data = await fetchJson(
       `https://oauth.reddit.com/search?q=${encodeURIComponent(topic)}&sort=relevance&t=${t}&limit=${limit}&type=link`,
-      { headers: { Authorization: `Bearer ${await getRedditToken()}`, "User-Agent": "StayUpdated/1.0" } }
+      { headers: { Authorization: `Bearer ${await getRedditToken()}`, "User-Agent": "StayUpdated/1.0" }, signal }
     );
     return (data.data?.children ?? [])
       .map((c) => c.data)
@@ -103,12 +104,12 @@ async function getBskyJwt() {
 export const bluesky = {
   name: "bluesky",
   requires: ["BSKY_HANDLE", "BSKY_APP_PASSWORD"],
-  async search(topic, { limit, maxAgeDays }) {
+  async search(topic, { limit, maxAgeDays, signal }) {
     const since = new Date(Date.now() - maxAgeDays * 86400000).toISOString();
     const data = await fetchJson(
       "https://bsky.social/xrpc/app.bsky.feed.searchPosts" +
         `?q=${encodeURIComponent(topic)}&sort=top&lang=en&limit=${Math.min(limit, 100)}&since=${since}`,
-      { headers: { Authorization: `Bearer ${await getBskyJwt()}` } }
+      { headers: { Authorization: `Bearer ${await getBskyJwt()}` }, signal }
     );
     return (data.posts ?? []).map((p) => {
       const rkey = p.uri.split("/").pop();
@@ -131,14 +132,15 @@ export const bluesky = {
 export const youtube = {
   name: "youtube",
   requires: ["YOUTUBE_API_KEY"],
-  async search(topic, { limit, maxAgeDays, region }) {
+  async search(topic, { limit, maxAgeDays, region, signal }) {
     const after = new Date(Date.now() - maxAgeDays * 86400000).toISOString();
     const regionCode = regionSettings(region).youtube;
     const data = await fetchJson(
       "https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&order=relevance" +
         `&relevanceLanguage=en&safeSearch=strict&maxResults=${Math.min(limit, 50)}` +
         (regionCode ? `&regionCode=${regionCode}` : "") +
-        `&publishedAfter=${after}&q=${encodeURIComponent(topic)}&key=${process.env.YOUTUBE_API_KEY}`
+        `&publishedAfter=${after}&q=${encodeURIComponent(topic)}&key=${process.env.YOUTUBE_API_KEY}`,
+      { signal }
     );
     return (data.items ?? []).map((v) => {
       const title = decodeEntities(v.snippet.title);

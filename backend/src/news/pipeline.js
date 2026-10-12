@@ -14,16 +14,18 @@ const PROMPT_CHARS = { article: 1500, post: 400, video: 400, reference: 800 };
 
 const MIN_RELEVANCE = Number(process.env.NEWS_MIN_RELEVANCE ?? 0.35);
 
-async function mapWithConcurrency(items, limit, fn) {
+// Stops handing out new items once `signal` is aborted.
+async function mapWithConcurrency(items, limit, fn, signal) {
   const results = new Array(items.length);
   let next = 0;
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) {
+    while (next < items.length && !signal?.aborted) {
       const i = next++;
       results[i] = await fn(items[i], i);
     }
   });
   await Promise.all(workers);
+  signal?.throwIfAborted();
   return results;
 }
 
@@ -91,7 +93,7 @@ function hostname(url) {
 }
 
 // Turns a candidate into something with readable text, or marks it rejected.
-async function readCandidate(candidate, timeoutMs) {
+async function readCandidate(candidate, timeoutMs, signal) {
   if (!candidate.fetch) {
     const text = stripHtml(candidate.text);
     return text.length >= MIN_PROVIDED_CHARS
@@ -100,7 +102,7 @@ async function readCandidate(candidate, timeoutMs) {
   }
 
   try {
-    const page = await extractArticle(candidate.url, { timeoutMs });
+    const page = await extractArticle(candidate.url, { timeoutMs, signal });
     if (page.text.length < MIN_ARTICLE_CHARS) throw new Error(`only ${page.text.length} chars of readable text`);
     return {
       ...candidate,
@@ -124,28 +126,41 @@ async function readCandidate(candidate, timeoutMs) {
 
 const CONTENT_RANK = { page: 0, snippet: 1, provided: 2 };
 
+function chunkText(chunk) {
+  const c = chunk?.content;
+  return typeof c === "string" ? c : Array.isArray(c) ? c.map((p) => p.text ?? "").join("") : "";
+}
+
 /**
  * Runs the whole news flow for a topic:
  *  1. discover candidates from news sites, web search, social media, YouTube and Wikipedia
  *  2. fetch article pages and extract their text
  *  3. validate: recent enough, enough content, relevant to the topic (embeddings or keywords), not a duplicate
  *  4. summarize the surviving items with the configured LLM, citing sources as [n]
+ *
+ * `onEvent(type, data)` reports progress as it happens (used for streaming):
+ *   stage {stage}, provider {name, ok, found|error|skipped}, progress {read, total}, summary {delta}.
+ * `signal` aborts all remaining work (page downloads, the LLM call) when the caller goes away.
  */
 export async function getTopicNews(
   topic,
-  { maxSources = 6, maxPosts = 5, maxVideos = 3, maxAgeDays = 7, region, urls = [], timeoutMs = 10000 } = {}
+  { maxSources = 6, maxPosts = 5, maxVideos = 3, maxAgeDays = 7, region, urls = [], timeoutMs = 10000, onEvent, signal } = {}
 ) {
   assertLLMConfigured(); // fail fast if the LLM is not configured, before scraping anything
   const startedAt = Date.now();
+  const emit = (type, data) => onEvent?.(type, data);
   const rejected = [];
   const reject = (item, reason) => rejected.push({ url: item.url, title: item.title, via: item.discoveredVia, reason });
 
   // 1. Discover
+  emit("stage", { stage: "discovering" });
   const { candidates, providerStatus } = await discoverAll(topic, {
     perSource: Math.max(10, maxSources * 2),
     maxAgeDays,
     region,
     extraUrls: urls,
+    signal,
+    onProvider: (name, status) => emit("provider", { name, ...status }),
   });
 
   const cutoff = Date.now() - maxAgeDays * 86400000;
@@ -164,7 +179,19 @@ export async function getTopicNews(
     return false;
   });
 
-  const read = await mapWithConcurrency(toRead, FETCH_CONCURRENCY, (c) => readCandidate(c, timeoutMs));
+  emit("stage", { stage: "reading" });
+  const pages = { read: 0, total: toRead.filter((c) => c.fetch).length };
+  emit("progress", pages);
+  const read = await mapWithConcurrency(
+    toRead,
+    FETCH_CONCURRENCY,
+    async (c) => {
+      const item = await readCandidate(c, timeoutMs, signal);
+      if (c.fetch) emit("progress", { read: ++pages.read, total: pages.total });
+      return item;
+    },
+    signal
+  );
   const readable = read.filter((item) => {
     if (item.rejected) reject(item, item.rejected);
     return !item.rejected;
@@ -175,6 +202,7 @@ export async function getTopicNews(
   }
 
   // 3. Validate relevance and remove near-duplicates
+  emit("stage", { stage: "validating" });
   const scores = await scoreRelevance(
     topic,
     readable.map((a) => `${a.title}. ${a.text.slice(0, 1000)}`)
@@ -202,6 +230,7 @@ export async function getTopicNews(
     counts[a.kind]++;
     accepted.push(a);
   }
+  signal?.throwIfAborted();
 
   if (counts.article + counts.post + counts.video === 0) {
     return { topic, summary: null, sources: [], rejected, providerStatus, message: "Found results, but none were relevant enough to the topic." };
@@ -244,33 +273,48 @@ export async function getTopicNews(
     .filter(Boolean)
     .join("\n\n");
 
-  let completion;
+  emit("stage", { stage: "summarizing", sourceCount: sources.length });
+  const messages = [
+    {
+      role: "system",
+      content:
+        "You are a news analyst. Summarize ONLY the information in the provided sources. " +
+        "Cite sources inline with their bracket numbers like [1] or [2][3]. " +
+        "Base facts on news articles; treat social media posts as public reaction, not fact. " +
+        "Do not invent facts, dates or numbers. If sources disagree, say so.",
+    },
+    {
+      role: "user",
+      content:
+        `Topic: ${topic}\nToday's date: ${new Date().toISOString().slice(0, 10)}\n\n${context}\n\n` +
+        "Write:\n1. A 2-3 sentence overview of the latest developments.\n" +
+        "2. 'Key points:' followed by 4-7 bullet points, each with citations.\n" +
+        "3. If there are social media posts or videos, 'What people are saying:' with 1-3 bullets.",
+    },
+  ];
+
+  // Streams the summary token by token when someone is listening, else one plain call.
+  let summary = "";
   try {
-    completion = await getLLM({ temperature: 0.3, maxTokens: 800 }).invoke([
-      {
-        role: "system",
-        content:
-          "You are a news analyst. Summarize ONLY the information in the provided sources. " +
-          "Cite sources inline with their bracket numbers like [1] or [2][3]. " +
-          "Base facts on news articles; treat social media posts as public reaction, not fact. " +
-          "Do not invent facts, dates or numbers. If sources disagree, say so.",
-      },
-      {
-        role: "user",
-        content:
-          `Topic: ${topic}\nToday's date: ${new Date().toISOString().slice(0, 10)}\n\n${context}\n\n` +
-          "Write:\n1. A 2-3 sentence overview of the latest developments.\n" +
-          "2. 'Key points:' followed by 4-7 bullet points, each with citations.\n" +
-          "3. If there are social media posts or videos, 'What people are saying:' with 1-3 bullets.",
-      },
-    ]);
+    const llm = getLLM({ temperature: 0.3, maxTokens: 800 });
+    if (onEvent) {
+      for await (const chunk of await llm.stream(messages, { signal })) {
+        const delta = chunkText(chunk);
+        if (!delta) continue;
+        summary += delta;
+        emit("summary", { delta });
+      }
+    } else {
+      summary = chunkText(await llm.invoke(messages, { signal }));
+    }
   } catch (err) {
+    if (signal?.aborted) throw err;
     throw toAIError(err, { assumeConnection: true });
   }
 
   return {
     topic,
-    summary: String(completion.content ?? "").trim(),
+    summary: summary.trim(),
     sources,
     rejected,
     providerStatus,

@@ -23,11 +23,12 @@ function unwrapParam(link, param) {
 
 export const bingNews = {
   name: "bing-news",
-  async search(topic, { limit, region }) {
+  async search(topic, { limit, region, signal }) {
     const market = regionSettings(region).bing;
     const body = await fetchText(
       `https://www.bing.com/news/search?q=${encodeURIComponent(topic)}&format=rss&count=${limit}` +
-        (market ? `&setmkt=${market.setmkt}&cc=${market.cc}` : "")
+        (market ? `&setmkt=${market.setmkt}&cc=${market.cc}` : ""),
+      { signal }
     );
     return rssItems(body).slice(0, limit).map((item) => ({
       kind: "article",
@@ -45,9 +46,9 @@ export const bingNews = {
 // so these are used as headlines (title + outlet + date) rather than full articles.
 export const googleNews = {
   name: "google-news",
-  async search(topic, { limit, maxAgeDays, region }) {
+  async search(topic, { limit, maxAgeDays, region, signal }) {
     const q = encodeURIComponent(`${topic} when:${maxAgeDays}d`);
-    const body = await fetchText(`https://news.google.com/rss/search?q=${q}&${regionSettings(region).googleNews}`);
+    const body = await fetchText(`https://news.google.com/rss/search?q=${q}&${regionSettings(region).googleNews}`, { signal });
     return rssItems(body).slice(0, limit).map((item) => {
       const source = item.source ? String(item.source) : null;
       let title = decodeEntities(item.title);
@@ -73,14 +74,15 @@ function parseGdeltDate(value) {
 
 export const gdelt = {
   name: "gdelt",
-  async search(topic, { limit, maxAgeDays, region }) {
+  async search(topic, { limit, maxAgeDays, region, signal }) {
     // GDELT uses FIPS country codes (the UK is "UK", not "GB").
     const country = regionSettings(region).gdelt;
     const query = `${topic} sourcelang:english${country ? ` sourcecountry:${country}` : ""}`;
     const body = await fetchText(
       "https://api.gdeltproject.org/api/v2/doc/doc" +
         `?query=${encodeURIComponent(query)}` +
-        `&mode=artlist&format=json&sort=datedesc&maxrecords=${limit}&timespan=${maxAgeDays}d`
+        `&mode=artlist&format=json&sort=datedesc&maxrecords=${limit}&timespan=${maxAgeDays}d`,
+      { signal }
     );
     // GDELT answers with a plain-text message (not JSON) when rate limited.
     if (!body.trimStart().startsWith("{")) throw new Error(body.slice(0, 120));
@@ -99,10 +101,11 @@ export const gdelt = {
 // General web search via DuckDuckGo's HTML endpoint, limited to the past week/month.
 export const duckduckgo = {
   name: "duckduckgo",
-  async search(topic, { limit, maxAgeDays, region }) {
+  async search(topic, { limit, maxAgeDays, region, signal }) {
     const df = maxAgeDays <= 1 ? "d" : maxAgeDays <= 7 ? "w" : "m";
     const body = await fetchText(
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${topic} news`)}&df=${df}&kl=${regionSettings(region).ddg}`
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${topic} news`)}&df=${df}&kl=${regionSettings(region).ddg}`,
+      { signal }
     );
     const { document } = parseHTML(body);
 
@@ -143,11 +146,12 @@ function parseRelativeDate(value) {
 export const googleSearch = {
   name: "google-search",
   requires: ["SERPER_API_KEY"],
-  async search(topic, { limit, maxAgeDays, region }) {
+  async search(topic, { limit, maxAgeDays, region, signal }) {
     const tbs = maxAgeDays <= 1 ? "qdr:d" : maxAgeDays <= 7 ? "qdr:w" : "qdr:m";
     const gl = regionSettings(region).serper;
     const data = await fetchJson("https://google.serper.dev/news", {
       method: "POST",
+      signal,
       headers: { "X-API-KEY": process.env.SERPER_API_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({ q: topic, tbs, num: limit, ...(gl && { gl }) }),
     });
@@ -166,19 +170,19 @@ export const googleSearch = {
 // Background context (not news): the best-matching Wikipedia article's summary.
 export const wikipedia = {
   name: "wikipedia",
-  async search(topic) {
+  async search(topic, { signal } = {}) {
     const headers = { "User-Agent": "StayUpdated/1.0 (news summarizer backend)" };
     const found = await fetchJson(
       "https://en.wikipedia.org/w/api.php?action=query&list=search&format=json&srlimit=1" +
         `&srsearch=${encodeURIComponent(topic)}`,
-      { headers }
+      { headers, signal }
     );
     const title = found?.query?.search?.[0]?.title;
     if (!title) return [];
 
     const page = await fetchJson(
       `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g, "_"))}`,
-      { headers }
+      { headers, signal }
     );
     return [
       {

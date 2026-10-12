@@ -1,6 +1,6 @@
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
-import { USER_AGENT } from "./http.js";
+import { USER_AGENT, withTimeout } from "./http.js";
 import { safeFetch } from "./safeFetch.js";
 
 const MAX_HTML_BYTES = 3 * 1024 * 1024;
@@ -20,11 +20,11 @@ function meta(document, ...names) {
  * Downloads a page and pulls out the readable article body.
  * Throws with a human-readable reason when the page can't be used.
  */
-export async function extractArticle(url, { timeoutMs = 10000 } = {}) {
+export async function extractArticle(url, { timeoutMs = 10000, signal } = {}) {
   // safeFetch refuses private/local hosts and checks every redirect hop.
   const res = await safeFetch(url, {
     headers: { "User-Agent": USER_AGENT, Accept: "text/html,application/xhtml+xml" },
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: withTimeout(signal, timeoutMs),
   });
 
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

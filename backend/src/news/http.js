@@ -1,11 +1,17 @@
 export const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
-export async function fetchText(url, { timeoutMs = 10000, headers = {}, ...init } = {}) {
+// A timeout, combined with the caller's signal (e.g. the client disconnected) when there is one.
+export function withTimeout(signal, timeoutMs) {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
+
+export async function fetchText(url, { timeoutMs = 10000, headers = {}, signal, ...init } = {}) {
   const res = await fetch(url, {
     ...init,
     headers: { "User-Agent": USER_AGENT, ...headers },
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: withTimeout(signal, timeoutMs),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.text();

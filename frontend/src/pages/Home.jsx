@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ResultView } from '../components/ResultView.jsx'
-import { ArrowRightIcon, CheckIcon, SearchIcon, SlidersIcon } from '../components/icons.jsx'
-import { Alert, Button, Spinner } from '../components/ui.jsx'
-import { api } from '../lib/api.js'
+import { SearchProgress } from '../components/SearchProgress.jsx'
+import { ArrowRightIcon, SearchIcon, SlidersIcon } from '../components/icons.jsx'
+import { Alert, Button } from '../components/ui.jsx'
 import { useAuth } from '../lib/auth.jsx'
 import { useHistory } from '../lib/history.jsx'
 import { preferredRegion, REGIONS } from '../lib/regions.js'
+import { useSearchStream } from '../lib/useSearchStream.js'
 
 const SUGGESTIONS = ['Artificial intelligence', 'Electric vehicles', 'Climate change', 'Stock market', 'Champions League', 'Space exploration']
 
@@ -16,44 +17,6 @@ const TIME_RANGES = [
   [7, 'Past week'],
   [30, 'Past month'],
 ]
-
-// The backend doesn't stream progress, so these stages are timed estimates of where it usually is.
-const STAGES = [
-  [0, 'Searching news sites, Google, social media and YouTube'],
-  [6, 'Reading articles'],
-  [18, 'Checking every source for relevance'],
-  [28, 'Writing your summary'],
-]
-
-function Loading({ topic }) {
-  const [elapsed, setElapsed] = useState(0)
-  useEffect(() => {
-    const started = Date.now()
-    const id = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 500)
-    return () => clearInterval(id)
-  }, [])
-
-  const current = STAGES.findLastIndex(([at]) => elapsed >= at)
-  return (
-    <div className="loading-card panel">
-      <div className="loading-orb">
-        <Spinner size={30} />
-      </div>
-      <h2>
-        Researching <span className="gradient-text">{topic}</span>
-      </h2>
-      <ol className="stage-list">
-        {STAGES.map(([, label], i) => (
-          <li key={label} className={i < current ? 'done' : i === current ? 'active' : ''}>
-            <span className="stage-icon">{i < current ? <CheckIcon width={14} height={14} /> : i === current ? <Spinner size={12} /> : null}</span>
-            {label}
-          </li>
-        ))}
-      </ol>
-      <p className="muted small">{elapsed}s · this usually takes 20–60 seconds</p>
-    </div>
-  )
-}
 
 export default function Home() {
   const { user } = useAuth()
@@ -70,7 +33,8 @@ export default function Home() {
   const [maxVideos, setMaxVideos] = useState(3)
   const [urls, setUrls] = useState('')
 
-  const [searching, setSearching] = useState('')
+  const { progress, start, cancel } = useSearchStream()
+  const searching = progress?.topic ?? ''
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
 
@@ -81,16 +45,12 @@ export default function Home() {
     setTopic(query)
     setError('')
     setResult(null)
-    setSearching(query)
     try {
       const extraUrls = urls
         .split(/\s+/)
         .map((u) => u.trim())
         .filter((u) => /^https?:\/\//.test(u))
-      const data = await api('/news/search', {
-        method: 'POST',
-        body: { topic: query, region, maxAgeDays, maxSources, maxPosts, maxVideos, urls: extraUrls },
-      })
+      const data = await start({ topic: query, region, maxAgeDays, maxSources, maxPosts, maxVideos, urls: extraUrls })
       // The saved search gets its own page; pass the full result (including what was filtered out).
       // Empty results aren't saved, so they have no id and are shown inline.
       if (data.id) {
@@ -98,9 +58,7 @@ export default function Home() {
         navigate(`/history/${data.id}`, { state: { result: data } })
       } else setResult(data)
     } catch (err) {
-      setError(err.message)
-    } finally {
-      setSearching('')
+      if (err.name !== 'AbortError') setError(err.message)
     }
   }
 
@@ -209,7 +167,7 @@ export default function Home() {
 
       <div className="page-body">
         <Alert>{error}</Alert>
-        {searching && <Loading topic={searching} />}
+        {progress && <SearchProgress progress={progress} onCancel={cancel} />}
         {result && <ResultView result={result} />}
       </div>
     </div>

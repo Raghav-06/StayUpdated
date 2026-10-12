@@ -31,18 +31,36 @@ function normalizeUrl(url) {
 /**
  * Searches every provider in parallel, plus any URLs the caller supplied directly.
  * A provider that is missing its credentials is skipped; one that errors is reported. Neither is fatal.
+ * `onProvider(name, status)` is called as each provider finishes.
  */
-export async function discoverAll(topic, { perSource = 15, maxAgeDays = 7, region, extraUrls = [] } = {}) {
-  const providerStatus = {};
+export async function discoverAll(topic, { perSource = 15, maxAgeDays = 7, region, extraUrls = [], signal, onProvider } = {}) {
+  const status = {};
+  const report = (name, s) => {
+    status[name] = s;
+    onProvider?.(name, s);
+  };
+
   const active = PROVIDERS.filter((p) => {
     const missing = (p.requires ?? []).filter((v) => !process.env[v]);
-    if (missing.length) providerStatus[p.name] = { ok: false, skipped: `set ${missing.join(", ")} to enable` };
+    if (missing.length) report(p.name, { ok: false, skipped: `set ${missing.join(", ")} to enable` });
     return !missing.length;
   });
 
   const settled = await Promise.allSettled(
-    active.map((p) => p.search(topic, { limit: perSource, maxAgeDays, region }))
+    active.map((p) =>
+      p.search(topic, { limit: perSource, maxAgeDays, region, signal }).then(
+        (found) => (report(p.name, { ok: true, found: found.length }), found),
+        (err) => {
+          report(p.name, { ok: false, error: err?.message ?? String(err) });
+          throw err;
+        }
+      )
+    )
   );
+  signal?.throwIfAborted();
+
+  // Same order as PROVIDERS, whatever order they finished in.
+  const providerStatus = Object.fromEntries(PROVIDERS.filter((p) => status[p.name]).map((p) => [p.name, status[p.name]]));
 
   const candidates = extraUrls.map((url) => ({
     kind: "article", title: "", url, source: null, publishedAt: null, text: "", fetch: true, discoveredVia: "user",
@@ -51,10 +69,7 @@ export async function discoverAll(topic, { perSource = 15, maxAgeDays = 7, regio
   active.forEach((p, i) => {
     const result = settled[i];
     if (result.status === "fulfilled") {
-      providerStatus[p.name] = { ok: true, found: result.value.length };
       candidates.push(...result.value.map((c) => ({ ...c, discoveredVia: p.name })));
-    } else {
-      providerStatus[p.name] = { ok: false, error: result.reason?.message ?? String(result.reason) };
     }
   });
 

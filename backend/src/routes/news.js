@@ -4,6 +4,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { runSearch } from "../news/searches.js";
 import { DEFAULT_REGION, isRegion } from "../news/regions.js";
 import { httpError } from "../utils/httpError.js";
+import { streamEvents } from "./sse.js";
 import { clampInt, requireString } from "./validate.js";
 
 const router = Router();
@@ -55,6 +56,15 @@ function parseSearchRequest(req) {
 router.post("/search", async (req, res) => {
   const { topic, params, force } = parseSearchRequest(req);
   res.json(await runSearch({ userId: req.user.id, topic, params, force }));
+});
+
+// Same as /search, but reports progress as server-sent events while it works:
+// stage, provider, progress, summary (token deltas), then done (the saved result) or error.
+router.post("/search/stream", async (req, res) => {
+  const { topic, params, force } = parseSearchRequest(req); // invalid input still gets a normal 400
+  await streamEvents(res, async (send, signal) => {
+    send("done", await runSearch({ userId: req.user.id, topic, params, force, onEvent: send, signal }));
+  });
 });
 
 router.get("/history", async (req, res) => {
