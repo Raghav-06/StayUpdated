@@ -10,6 +10,7 @@ import { chatWithAgent, resumeAgent } from "../agents/cityAgent.js";
 import { getGreeting } from "../tools/greeting.js";
 import authRouter from "./auth.js";
 import newsRouter from "./news.js";
+import publicRouter from "./public.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireString } from "./validate.js";
 
@@ -17,6 +18,7 @@ const router = Router();
 
 router.use("/auth", authRouter);
 router.use("/news", newsRouter);
+router.use("/public", publicRouter);
 
 // The AI routes spend LLM credits: signed-in users only, and a per-user budget.
 const aiLimiter = rateLimit({

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { formatDate, hostname, minutesAgo, shortDate, timeAgo } from '../lib/format.js'
+import { regionLabel } from '../lib/regions.js'
 import { AlertIcon, BookIcon, ChatIcon, CheckIcon, ChevronIcon, ExternalIcon, NewsIcon, PlayIcon, SparkIcon } from './icons.jsx'
 import { Summary } from './Summary.jsx'
 
@@ -104,11 +105,16 @@ function Rejected({ items }) {
   )
 }
 
-/** Shows a search result: either straight from /news/search or a saved row from history. */
-export function ResultView({ result }) {
+/**
+ * Shows a search result: either straight from /news/search or a saved row from history.
+ * `readOnly` is the public shared view (no history-specific details); `afterSummary` is
+ * rendered right under the summary panel.
+ */
+export function ResultView({ result, readOnly = false, afterSummary = null }) {
   const sources = useMemo(() => result.sources ?? [], [result.sources])
   const providerStatus = result.providerStatus ?? result.provider_status
   const createdAt = result.createdAt ?? result.created_at
+  const region = result.region ?? result.params?.region
   const [filter, setFilter] = useState('all')
   const [highlight, setHighlight] = useState(null)
 
@@ -136,9 +142,10 @@ export function ResultView({ result }) {
         <h1>{result.topic}</h1>
         <div className="result-meta">
           {createdAt && <span>{formatDate(createdAt)}</span>}
+          {region && <span>{regionLabel(region)}</span>}
           <span>{sources.length} verified sources</span>
           {result.stats?.tookMs && !result.stats.cached && <span>{(result.stats.tookMs / 1000).toFixed(1)}s</span>}
-          {result.stats?.cached && (
+          {!readOnly && result.stats?.cached && (
             <span>
               <span className="tag" title="An identical search was made recently, so its result was reused">
                 cached · {minutesAgo(result.stats.cachedFrom)}
@@ -146,7 +153,7 @@ export function ResultView({ result }) {
             </span>
           )}
         </div>
-        {result.stats?.comparedTo && (
+        {!readOnly && result.stats?.comparedTo && (
           <p className="new-since">
             {result.stats.comparedTo.newCount > 0 ? (
               <>
@@ -179,6 +186,8 @@ export function ResultView({ result }) {
         )}
       </section>
 
+      {afterSummary}
+
       {sources.length > 0 && (
         <section>
           <div className="sources-header">
@@ -205,10 +214,12 @@ export function ResultView({ result }) {
         </section>
       )}
 
-      <div className="result-details">
-        <ProviderStatus status={providerStatus} />
-        <Rejected items={result.rejected} />
-      </div>
+      {!readOnly && (
+        <div className="result-details">
+          <ProviderStatus status={providerStatus} />
+          <Rejected items={result.rejected} />
+        </div>
+      )}
     </div>
   )
 }

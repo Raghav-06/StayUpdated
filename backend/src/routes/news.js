@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { Router } from "express";
 import { query } from "../db/index.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -89,6 +90,28 @@ router.get("/history/:id", async (req, res) => {
   );
   if (!rows[0]) throw httpError(404, "Search not found");
   res.json(rows[0]);
+});
+
+// Creates (or returns the existing) public read-only link for a search.
+router.post("/history/:id/share", async (req, res) => {
+  const { rows } = await query(
+    `UPDATE news_searches SET share_id = COALESCE(share_id, $3)
+      WHERE id = $1 AND user_id = $2 RETURNING share_id`,
+    [requireUuid(req.params.id), req.user.id, randomBytes(16).toString("base64url")] // 22 URL-safe chars
+  );
+  if (!rows[0]) throw httpError(404, "Search not found");
+  const shareId = rows[0].share_id;
+  res.json({ shareId, url: `${process.env.FRONTEND_URL ?? ""}/s/${shareId}` });
+});
+
+// Revokes the link; the old URL stops working.
+router.delete("/history/:id/share", async (req, res) => {
+  const { rowCount } = await query(
+    "UPDATE news_searches SET share_id = NULL WHERE id = $1 AND user_id = $2",
+    [requireUuid(req.params.id), req.user.id]
+  );
+  if (!rowCount) throw httpError(404, "Search not found");
+  res.status(204).end();
 });
 
 router.delete("/history/:id", async (req, res) => {

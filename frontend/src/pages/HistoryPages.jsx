@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ResultView } from '../components/ResultView.jsx'
 import { SearchProgress } from '../components/SearchProgress.jsx'
+import { ShareMenu } from '../components/ShareMenu.jsx'
 import { ClockIcon, PlusIcon, RefreshIcon, TrashIcon } from '../components/icons.jsx'
 import { Alert, Button, Spinner } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
@@ -162,6 +163,7 @@ export function HistoryDetail() {
         </Link>
         {result && !progress && (
           <div className="toolbar-actions">
+            <ShareMenu key={id} result={result} />
             <button className="btn btn-ghost" onClick={handleRefresh} title="Search this topic again and highlight new sources">
               <RefreshIcon width={16} height={16} /> Refresh
             </button>
