@@ -3,10 +3,10 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/auth.jsx'
 import { timeAgo } from '../lib/format.js'
 import { HistoryProvider, useHistory } from '../lib/history.jsx'
-import { ClockIcon, CloseIcon, Logo, LogoutIcon, MenuIcon, PanelIcon, PlusIcon } from './icons.jsx'
+import { ClockIcon, CloseIcon, Logo, LogoutIcon, MenuIcon, PanelIcon, PlusIcon, SettingsIcon } from './icons.jsx'
 import { Spinner } from './ui.jsx'
 
-function Avatar({ user }) {
+export function Avatar({ user }) {
   const initial = (user.name || user.email || '?').trim()[0].toUpperCase()
   return user.avatar_url ? (
     <img className="avatar" src={user.avatar_url} alt="" referrerPolicy="no-referrer" />
@@ -70,11 +70,14 @@ function Sidebar({ open, onClose, onCollapse }) {
         </div>
 
         <div className="sidebar-user">
-          <Avatar user={user} />
-          <div className="sidebar-user-info">
-            <strong>{user.name || user.email.split('@')[0]}</strong>
-            <span className="muted small">{user.email}</span>
-          </div>
+          <NavLink to="/settings" className="sidebar-user-link" title="Account settings">
+            <Avatar user={user} />
+            <div className="sidebar-user-info">
+              <strong>{user.name || user.email.split('@')[0]}</strong>
+              <span className="muted small">{user.email}</span>
+            </div>
+            <SettingsIcon className="sidebar-user-gear" width={16} height={16} />
+          </NavLink>
           <button className="icon-btn" onClick={signOut} title="Sign out" aria-label="Sign out">
             <LogoutIcon />
           </button>

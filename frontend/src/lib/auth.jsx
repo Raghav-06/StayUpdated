@@ -42,9 +42,12 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [signOut])
 
+  // After the profile or preferences change on the server.
+  const updateUser = useCallback((next) => setUser(next), [])
+
   const value = useMemo(
-    () => ({ user, loading, googleEnabled, signIn, signInWithToken, signOut }),
-    [user, loading, googleEnabled, signIn, signInWithToken, signOut],
+    () => ({ user, loading, googleEnabled, signIn, signInWithToken, signOut, updateUser }),
+    [user, loading, googleEnabled, signIn, signInWithToken, signOut, updateUser],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -7,6 +7,7 @@ import {
 import { runToolCalling } from "../agents/toolCalling.js";
 import { chatWithAgent, resumeAgent } from "../agents/cityAgent.js";
 import { getGreeting } from "../tools/greeting.js";
+import accountRouter from "./account.js";
 import authRouter from "./auth.js";
 import newsRouter from "./news.js";
 import publicRouter from "./public.js";
@@ -17,6 +18,7 @@ import { requireString } from "./validate.js";
 const router = Router();
 
 router.use("/auth", authRouter);
+router.use("/account", accountRouter);
 router.use("/news", newsRouter);
 router.use("/public", publicRouter);
 

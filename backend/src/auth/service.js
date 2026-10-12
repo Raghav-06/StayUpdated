@@ -14,6 +14,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PUBLIC_USER = `id, email, name, avatar_url, preferences, email_verified_at, created_at,
   (password_hash IS NOT NULL) AS has_password, (google_id IS NOT NULL) AS has_google`;
 
+// Public columns plus what's needed to sign a token; token_version never goes to the client.
+const AUTH_USER = `${PUBLIC_USER}, token_version`;
+
 export function normalizeEmail(email) {
   const value = typeof email === "string" ? email.trim().toLowerCase() : "";
   if (!EMAIL_RE.test(value) || value.length > 254) throw httpError(400, "A valid email is required");
@@ -24,8 +27,9 @@ function hashCode(code) {
   return createHmac("sha256", process.env.JWT_SECRET ?? "").update(code).digest("hex");
 }
 
-function session(user) {
-  return { status: "signed_in", token: signAccessToken(user), user };
+// Takes a row selected with AUTH_USER.
+export function session({ token_version, ...user }) {
+  return { status: "signed_in", token: signAccessToken({ ...user, token_version }), user };
 }
 
 function cleanName(name) {
@@ -39,6 +43,12 @@ async function findUserByEmail(email) {
 
 export async function getPublicUser(id) {
   const { rows } = await query(`SELECT ${PUBLIC_USER} FROM users WHERE id = $1`, [id]);
+  return rows[0] ?? null;
+}
+
+/** The public user plus token_version (for checking and signing tokens). */
+export async function getAuthUser(id) {
+  const { rows } = await query(`SELECT ${AUTH_USER} FROM users WHERE id = $1`, [id]);
   return rows[0] ?? null;
 }
 
@@ -137,7 +147,7 @@ export async function setPassword(setupToken, password, name) {
        SET password_hash = EXCLUDED.password_hash,
            name = COALESCE(users.name, EXCLUDED.name),
            last_login_at = now(), updated_at = now()
-     RETURNING ${PUBLIC_USER}`,
+     RETURNING ${AUTH_USER}`,
     [email, cleanName(name), passwordHash]
   );
   return session(rows[0]);
@@ -154,13 +164,13 @@ export async function loginWithPassword(rawEmail, password) {
     throw httpError(401, "Invalid email or password");
   }
   await query("UPDATE users SET last_login_at = now() WHERE id = $1", [user.id]);
-  return session(await getPublicUser(user.id));
+  return session(await getAuthUser(user.id));
 }
 
 // Google proves who the user is, so they're signed in directly. A Google-only account
 // can add a password later through "Forgot password".
 async function googleResult(userId) {
-  return session(await getPublicUser(userId));
+  return session(await getAuthUser(userId));
 }
 
 /** Google sign-in: find by Google ID, else link to an existing account with the same email, else create. */

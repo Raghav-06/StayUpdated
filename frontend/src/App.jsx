@@ -6,6 +6,7 @@ import { AuthCallback, ForgotPassword, Signup } from './pages/AuthPages.jsx'
 import { HistoryDetail, HistoryList } from './pages/HistoryPages.jsx'
 import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
+import Settings from './pages/Settings.jsx'
 import SharedSearch from './pages/SharedSearch.jsx'
 
 function FullscreenSpinner() {
@@ -61,6 +62,7 @@ export default function App() {
               <Route index element={<Home />} />
               <Route path="/history" element={<HistoryList />} />
               <Route path="/history/:id" element={<HistoryDetail />} />
+              <Route path="/settings" element={<Settings />} />
             </Route>
           </Route>
           <Route path="*" element={<NotFound />} />

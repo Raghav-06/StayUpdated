@@ -10,9 +10,10 @@ function secret() {
   return value;
 }
 
-// Each token carries a `typ` so a set-password token can never be used as a login token.
+// Each token carries a `typ` so a set-password token can never be used as a login token,
+// and access tokens a `tv` (the user's token_version) so they can all be revoked at once.
 export function signAccessToken(user) {
-  return jwt.sign({ typ: "access", email: user.email }, secret(), {
+  return jwt.sign({ typ: "access", email: user.email, tv: user.token_version ?? 0 }, secret(), {
     subject: user.id,
     expiresIn: ACCESS_TOKEN_TTL,
   });
