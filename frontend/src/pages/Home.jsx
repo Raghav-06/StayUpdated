@@ -6,6 +6,7 @@ import { Alert, Button, Spinner } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
 import { useAuth } from '../lib/auth.jsx'
 import { useHistory } from '../lib/history.jsx'
+import { preferredRegion, REGIONS } from '../lib/regions.js'
 
 const SUGGESTIONS = ['Artificial intelligence', 'Electric vehicles', 'Climate change', 'Stock market', 'Champions League', 'Space exploration']
 
@@ -63,6 +64,7 @@ export default function Home() {
   const [topic, setTopic] = useState('')
   const [showOptions, setShowOptions] = useState(false)
   const [maxAgeDays, setMaxAgeDays] = useState(7)
+  const [region, setRegion] = useState(() => preferredRegion(user))
   const [maxSources, setMaxSources] = useState(6)
   const [maxPosts, setMaxPosts] = useState(5)
   const [maxVideos, setMaxVideos] = useState(3)
@@ -87,7 +89,7 @@ export default function Home() {
         .filter((u) => /^https?:\/\//.test(u))
       const data = await api('/news/search', {
         method: 'POST',
-        body: { topic: query, maxAgeDays, maxSources, maxPosts, maxVideos, urls: extraUrls },
+        body: { topic: query, region, maxAgeDays, maxSources, maxPosts, maxVideos, urls: extraUrls },
       })
       // The saved search gets its own page; pass the full result (including what was filtered out).
       // Empty results aren't saved, so they have no id and are shown inline.
@@ -149,7 +151,17 @@ export default function Home() {
 
         {showOptions && (
           <div className="options panel">
-            <label className="option">
+            <label className="option option-half">
+              <span>Region</span>
+              <select className="input" value={region} onChange={(e) => setRegion(e.target.value)}>
+                {REGIONS.map(([code, label]) => (
+                  <option key={code} value={code}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="option option-half">
               <span>Time range</span>
               <select className="input" value={maxAgeDays} onChange={(e) => setMaxAgeDays(Number(e.target.value))}>
                 {TIME_RANGES.map(([days, label]) => (

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { query } from "../db/index.js";
 import { requireAuth } from "../middleware/auth.js";
 import { getTopicNews } from "../news/pipeline.js";
+import { DEFAULT_REGION, isRegion } from "../news/regions.js";
 import { httpError } from "../utils/httpError.js";
 import { clampInt, requireString } from "./validate.js";
 
@@ -38,7 +39,11 @@ router.post("/search", async (req, res) => {
     throw httpError(400, "'urls' must be an array of strings");
   }
 
+  const { region } = req.body;
+  if (region !== undefined && !isRegion(region)) throw httpError(400, "'region' must be one of IN, US, GB, global");
+
   const params = {
+    region: region ?? (isRegion(req.user.preferences?.region) ? req.user.preferences.region : DEFAULT_REGION),
     maxSources: clampInt(req.body.maxSources, 1, 10, 6),
     maxPosts: clampInt(req.body.maxPosts, 0, 10, 5),
     maxVideos: clampInt(req.body.maxVideos, 0, 10, 3),

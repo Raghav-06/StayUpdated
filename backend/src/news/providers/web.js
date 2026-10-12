@@ -4,6 +4,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { parseHTML } from "linkedom";
 import { decodeEntities, fetchJson, fetchText, stripHtml, toDate } from "../http.js";
+import { regionSettings } from "../regions.js";
 
 const xml = new XMLParser({ ignoreAttributes: true, removeNSPrefix: true });
 
@@ -22,9 +23,11 @@ function unwrapParam(link, param) {
 
 export const bingNews = {
   name: "bing-news",
-  async search(topic, { limit }) {
+  async search(topic, { limit, region }) {
+    const market = regionSettings(region).bing;
     const body = await fetchText(
-      `https://www.bing.com/news/search?q=${encodeURIComponent(topic)}&format=rss&count=${limit}`
+      `https://www.bing.com/news/search?q=${encodeURIComponent(topic)}&format=rss&count=${limit}` +
+        (market ? `&setmkt=${market.setmkt}&cc=${market.cc}` : "")
     );
     return rssItems(body).slice(0, limit).map((item) => ({
       kind: "article",
@@ -42,9 +45,9 @@ export const bingNews = {
 // so these are used as headlines (title + outlet + date) rather than full articles.
 export const googleNews = {
   name: "google-news",
-  async search(topic, { limit, maxAgeDays }) {
+  async search(topic, { limit, maxAgeDays, region }) {
     const q = encodeURIComponent(`${topic} when:${maxAgeDays}d`);
-    const body = await fetchText(`https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`);
+    const body = await fetchText(`https://news.google.com/rss/search?q=${q}&${regionSettings(region).googleNews}`);
     return rssItems(body).slice(0, limit).map((item) => {
       const source = item.source ? String(item.source) : null;
       let title = decodeEntities(item.title);
@@ -70,10 +73,13 @@ function parseGdeltDate(value) {
 
 export const gdelt = {
   name: "gdelt",
-  async search(topic, { limit, maxAgeDays }) {
+  async search(topic, { limit, maxAgeDays, region }) {
+    // GDELT uses FIPS country codes (the UK is "UK", not "GB").
+    const country = regionSettings(region).gdelt;
+    const query = `${topic} sourcelang:english${country ? ` sourcecountry:${country}` : ""}`;
     const body = await fetchText(
       "https://api.gdeltproject.org/api/v2/doc/doc" +
-        `?query=${encodeURIComponent(`${topic} sourcelang:english`)}` +
+        `?query=${encodeURIComponent(query)}` +
         `&mode=artlist&format=json&sort=datedesc&maxrecords=${limit}&timespan=${maxAgeDays}d`
     );
     // GDELT answers with a plain-text message (not JSON) when rate limited.
@@ -93,10 +99,10 @@ export const gdelt = {
 // General web search via DuckDuckGo's HTML endpoint, limited to the past week/month.
 export const duckduckgo = {
   name: "duckduckgo",
-  async search(topic, { limit, maxAgeDays }) {
+  async search(topic, { limit, maxAgeDays, region }) {
     const df = maxAgeDays <= 1 ? "d" : maxAgeDays <= 7 ? "w" : "m";
     const body = await fetchText(
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${topic} news`)}&df=${df}`
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`${topic} news`)}&df=${df}&kl=${regionSettings(region).ddg}`
     );
     const { document } = parseHTML(body);
 
@@ -137,12 +143,13 @@ function parseRelativeDate(value) {
 export const googleSearch = {
   name: "google-search",
   requires: ["SERPER_API_KEY"],
-  async search(topic, { limit, maxAgeDays }) {
+  async search(topic, { limit, maxAgeDays, region }) {
     const tbs = maxAgeDays <= 1 ? "qdr:d" : maxAgeDays <= 7 ? "qdr:w" : "qdr:m";
+    const gl = regionSettings(region).serper;
     const data = await fetchJson("https://google.serper.dev/news", {
       method: "POST",
       headers: { "X-API-KEY": process.env.SERPER_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ q: topic, tbs, num: limit }),
+      body: JSON.stringify({ q: topic, tbs, num: limit, ...(gl && { gl }) }),
     });
     return (data.news ?? []).map((n) => ({
       kind: "article",

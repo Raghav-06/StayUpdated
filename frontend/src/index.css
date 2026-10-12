@@ -581,12 +581,13 @@ select.input { cursor: pointer; }
   margin-top: 12px;
   padding: 18px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 16px;
   text-align: left;
   animation: fadeUp 0.2s ease;
 }
-.option { display: flex; flex-direction: column; gap: 8px; font-size: 0.82rem; color: var(--muted); }
+.option { display: flex; flex-direction: column; gap: 8px; font-size: 0.82rem; color: var(--muted); grid-column: span 2; }
+.option-half { grid-column: span 3; }
 .option strong { color: var(--text-strong); margin-left: 4px; }
 .option-wide { grid-column: 1 / -1; }
 .option .input { height: 38px; font-size: 0.88rem; }
@@ -835,6 +836,7 @@ input[type='range'] { accent-color: var(--accent); width: 100%; margin: 10px 0 0
   .auth-brand { display: none; }
   .brand-mobile { display: inline-flex; }
   .options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .option:not(.option-wide) { grid-column: span 1; }
 }
 
 @media (max-width: 860px) {

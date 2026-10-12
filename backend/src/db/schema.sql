@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (lower(email));
 
+-- Per-user settings, e.g. { "region": "IN", "digestEnabled": true }.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB NOT NULL DEFAULT '{}';
+
 -- One row per code emailed. A code is first "verified" (correct code entered), then
 -- "used" (password set with it). Only a hash of the code is stored.
 CREATE TABLE IF NOT EXISTS email_verifications (

@@ -1,5 +1,6 @@
 // Social media and video platforms. Same candidate shape as web.js.
 import { decodeEntities, fetchJson, stripHtml, toDate } from "../http.js";
+import { regionSettings } from "../regions.js";
 
 // Hacker News (Algolia API, no key). Link posts point at real articles we can read.
 export const hackerNews = {
@@ -130,11 +131,13 @@ export const bluesky = {
 export const youtube = {
   name: "youtube",
   requires: ["YOUTUBE_API_KEY"],
-  async search(topic, { limit, maxAgeDays }) {
+  async search(topic, { limit, maxAgeDays, region }) {
     const after = new Date(Date.now() - maxAgeDays * 86400000).toISOString();
+    const regionCode = regionSettings(region).youtube;
     const data = await fetchJson(
       "https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&order=relevance" +
         `&relevanceLanguage=en&safeSearch=strict&maxResults=${Math.min(limit, 50)}` +
+        (regionCode ? `&regionCode=${regionCode}` : "") +
         `&publishedAfter=${after}&q=${encodeURIComponent(topic)}&key=${process.env.YOUTUBE_API_KEY}`
     );
     return (data.items ?? []).map((v) => {

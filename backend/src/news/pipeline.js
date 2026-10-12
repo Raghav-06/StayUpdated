@@ -133,7 +133,7 @@ const CONTENT_RANK = { page: 0, snippet: 1, provided: 2 };
  */
 export async function getTopicNews(
   topic,
-  { maxSources = 6, maxPosts = 5, maxVideos = 3, maxAgeDays = 7, urls = [], timeoutMs = 10000 } = {}
+  { maxSources = 6, maxPosts = 5, maxVideos = 3, maxAgeDays = 7, region, urls = [], timeoutMs = 10000 } = {}
 ) {
   assertLLMConfigured(); // fail fast if the LLM is not configured, before scraping anything
   const startedAt = Date.now();
@@ -144,6 +144,7 @@ export async function getTopicNews(
   const { candidates, providerStatus } = await discoverAll(topic, {
     perSource: Math.max(10, maxSources * 2),
     maxAgeDays,
+    region,
     extraUrls: urls,
   });
 

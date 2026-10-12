@@ -11,7 +11,7 @@ const MAX_CODE_ATTEMPTS = 5;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Columns safe to send to the client.
-const PUBLIC_USER = `id, email, name, avatar_url, email_verified_at, created_at,
+const PUBLIC_USER = `id, email, name, avatar_url, preferences, email_verified_at, created_at,
   (password_hash IS NOT NULL) AS has_password, (google_id IS NOT NULL) AS has_google`;
 
 export function normalizeEmail(email) {

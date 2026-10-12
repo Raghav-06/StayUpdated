@@ -32,7 +32,7 @@ function normalizeUrl(url) {
  * Searches every provider in parallel, plus any URLs the caller supplied directly.
  * A provider that is missing its credentials is skipped; one that errors is reported. Neither is fatal.
  */
-export async function discoverAll(topic, { perSource = 15, maxAgeDays = 7, extraUrls = [] } = {}) {
+export async function discoverAll(topic, { perSource = 15, maxAgeDays = 7, region, extraUrls = [] } = {}) {
   const providerStatus = {};
   const active = PROVIDERS.filter((p) => {
     const missing = (p.requires ?? []).filter((v) => !process.env[v]);
@@ -41,7 +41,7 @@ export async function discoverAll(topic, { perSource = 15, maxAgeDays = 7, extra
   });
 
   const settled = await Promise.allSettled(
-    active.map((p) => p.search(topic, { limit: perSource, maxAgeDays }))
+    active.map((p) => p.search(topic, { limit: perSource, maxAgeDays, region }))
   );
 
   const candidates = extraUrls.map((url) => ({
