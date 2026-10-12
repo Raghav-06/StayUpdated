@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import apiRouter from "./routes/index.js";
+import { toAIError } from "./config/llm.js";
 
 const app = express();
 
@@ -18,7 +19,9 @@ app.use("/api", apiRouter);
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 
 // Express 5 forwards rejected promises from async handlers here.
-app.use((err, req, res, next) => {
+app.use((error, req, res, next) => {
+  // AI provider failures (unreachable, key rejected, rate limited) become a clear 503.
+  const err = toAIError(error);
   const status = err.status || 500;
   if (status >= 500) console.error(err);
   res.status(status).json({ error: err.message || "Internal server error" });

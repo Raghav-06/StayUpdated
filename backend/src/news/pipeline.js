@@ -1,4 +1,4 @@
-import { assertLLMConfigured, EMBEDDING_CONFIG, getEmbeddings, getLLM, LLM_CONFIG } from "../config/llm.js";
+import { assertLLMConfigured, EMBEDDING_CONFIG, getEmbeddings, getLLM, LLM_CONFIG, toAIError } from "../config/llm.js";
 import { discoverAll } from "./sources.js";
 import { extractArticle } from "./extract.js";
 import { stripHtml } from "./http.js";
@@ -64,7 +64,12 @@ function wordVector(text) {
 async function scoreRelevance(topic, texts) {
   const embeddings = getEmbeddings();
   if (embeddings) {
-    const [topicVector, ...vectors] = await embeddings.embedDocuments([topic, ...texts]);
+    let topicVector, vectors;
+    try {
+      [topicVector, ...vectors] = await embeddings.embedDocuments([topic, ...texts]);
+    } catch (err) {
+      throw toAIError(err, { assumeConnection: true });
+    }
     return vectors.map((vector) => ({ vector, relevance: cosine(topicVector, vector) }));
   }
 
@@ -238,24 +243,29 @@ export async function getTopicNews(
     .filter(Boolean)
     .join("\n\n");
 
-  const completion = await getLLM({ temperature: 0.3, maxTokens: 800 }).invoke([
-    {
-      role: "system",
-      content:
-        "You are a news analyst. Summarize ONLY the information in the provided sources. " +
-        "Cite sources inline with their bracket numbers like [1] or [2][3]. " +
-        "Base facts on news articles; treat social media posts as public reaction, not fact. " +
-        "Do not invent facts, dates or numbers. If sources disagree, say so.",
-    },
-    {
-      role: "user",
-      content:
-        `Topic: ${topic}\nToday's date: ${new Date().toISOString().slice(0, 10)}\n\n${context}\n\n` +
-        "Write:\n1. A 2-3 sentence overview of the latest developments.\n" +
-        "2. 'Key points:' followed by 4-7 bullet points, each with citations.\n" +
-        "3. If there are social media posts or videos, 'What people are saying:' with 1-3 bullets.",
-    },
-  ]);
+  let completion;
+  try {
+    completion = await getLLM({ temperature: 0.3, maxTokens: 800 }).invoke([
+      {
+        role: "system",
+        content:
+          "You are a news analyst. Summarize ONLY the information in the provided sources. " +
+          "Cite sources inline with their bracket numbers like [1] or [2][3]. " +
+          "Base facts on news articles; treat social media posts as public reaction, not fact. " +
+          "Do not invent facts, dates or numbers. If sources disagree, say so.",
+      },
+      {
+        role: "user",
+        content:
+          `Topic: ${topic}\nToday's date: ${new Date().toISOString().slice(0, 10)}\n\n${context}\n\n` +
+          "Write:\n1. A 2-3 sentence overview of the latest developments.\n" +
+          "2. 'Key points:' followed by 4-7 bullet points, each with citations.\n" +
+          "3. If there are social media posts or videos, 'What people are saying:' with 1-3 bullets.",
+      },
+    ]);
+  } catch (err) {
+    throw toAIError(err, { assumeConnection: true });
+  }
 
   return {
     topic,
