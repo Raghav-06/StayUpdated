@@ -47,3 +47,7 @@ CREATE TABLE IF NOT EXISTS news_searches (
 );
 
 CREATE INDEX IF NOT EXISTS news_searches_user_idx ON news_searches (user_id, created_at DESC);
+
+-- Hash of topic + options; recent searches with the same key are reused (NULL = never cached).
+ALTER TABLE news_searches ADD COLUMN IF NOT EXISTS cache_key TEXT;
+CREATE INDEX IF NOT EXISTS news_searches_cache_idx ON news_searches (cache_key, created_at DESC);

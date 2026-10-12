@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { formatDate, hostname, timeAgo } from '../lib/format.js'
+import { formatDate, hostname, minutesAgo, timeAgo } from '../lib/format.js'
 import { AlertIcon, BookIcon, ChatIcon, CheckIcon, ChevronIcon, ExternalIcon, NewsIcon, PlayIcon, SparkIcon } from './icons.jsx'
 import { Summary } from './Summary.jsx'
 
@@ -132,7 +132,14 @@ export function ResultView({ result }) {
         <div className="result-meta">
           {createdAt && <span>{formatDate(createdAt)}</span>}
           <span>{sources.length} verified sources</span>
-          {result.stats?.tookMs && <span>{(result.stats.tookMs / 1000).toFixed(1)}s</span>}
+          {result.stats?.tookMs && !result.stats.cached && <span>{(result.stats.tookMs / 1000).toFixed(1)}s</span>}
+          {result.stats?.cached && (
+            <span>
+              <span className="tag" title="An identical search was made recently, so its result was reused">
+                cached · {minutesAgo(result.stats.cachedFrom)}
+              </span>
+            </span>
+          )}
         </div>
       </header>
 

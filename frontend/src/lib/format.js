@@ -19,6 +19,12 @@ export function timeAgo(value) {
   return 'just now'
 }
 
+// "3 min ago", for short spans like cache age.
+export function minutesAgo(value) {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000))
+  return minutes < 1 ? 'just now' : `${minutes} min ago`
+}
+
 export function formatDate(value) {
   if (!value) return ''
   return new Date(value).toLocaleString(undefined, {

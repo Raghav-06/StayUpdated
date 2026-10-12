@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { query } from "../db/index.js";
 import { requireAuth } from "../middleware/auth.js";
-import { getTopicNews } from "../news/pipeline.js";
+import { runSearch } from "../news/searches.js";
 import { DEFAULT_REGION, isRegion } from "../news/regions.js";
 import { httpError } from "../utils/httpError.js";
 import { clampInt, requireString } from "./validate.js";
@@ -30,16 +30,14 @@ function requireUuid(value) {
   return value;
 }
 
-// Hugging Face pipeline: discover -> fetch -> validate -> summarize, then save to the user's history.
-router.post("/search", async (req, res) => {
+// Reads and validates the search options shared by /search and /search/stream.
+function parseSearchRequest(req) {
   const topic = requireString(req.body, "topic");
-  const { urls } = req.body;
+  const { urls, region } = req.body;
 
   if (urls !== undefined && (!Array.isArray(urls) || urls.some((u) => typeof u !== "string"))) {
     throw httpError(400, "'urls' must be an array of strings");
   }
-
-  const { region } = req.body;
   if (region !== undefined && !isRegion(region)) throw httpError(400, "'region' must be one of IN, US, GB, global");
 
   const params = {
@@ -50,29 +48,13 @@ router.post("/search", async (req, res) => {
     maxAgeDays: clampInt(req.body.maxAgeDays, 1, 30, 7),
     urls: (urls ?? []).slice(0, 10).map(validateUrl),
   };
+  return { topic, params, force: req.body.force === true };
+}
 
-  const result = await getTopicNews(topic, params);
-
-  // Nothing usable was found: show it to the user, but don't clutter their history with it.
-  if (!result.sources.length) return res.json(result);
-
-  const { rows } = await query(
-    `INSERT INTO news_searches (user_id, topic, params, summary, sources, provider_status, stats, models)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING id, created_at`,
-    [
-      req.user.id,
-      topic,
-      params,
-      result.summary,
-      JSON.stringify(result.sources),
-      result.providerStatus,
-      result.stats ?? {},
-      result.models ?? {},
-    ]
-  );
-
-  res.json({ id: rows[0].id, createdAt: rows[0].created_at, ...result });
+// Pipeline: discover -> fetch -> validate -> summarize (or a recent cached result), saved to the user's history.
+router.post("/search", async (req, res) => {
+  const { topic, params, force } = parseSearchRequest(req);
+  res.json(await runSearch({ userId: req.user.id, topic, params, force }));
 });
 
 router.get("/history", async (req, res) => {
