@@ -25,6 +25,10 @@ export function minutesAgo(value) {
   return minutes < 1 ? 'just now' : `${minutes} min ago`
 }
 
+export function shortDate(value) {
+  return value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''
+}
+
 export function formatDate(value) {
   if (!value) return ''
   return new Date(value).toLocaleString(undefined, {

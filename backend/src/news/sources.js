@@ -15,7 +15,7 @@ export const PROVIDERS = [
   wikipedia,
 ];
 
-function normalizeUrl(url) {
+export function normalizeUrl(url) {
   try {
     const u = new URL(url);
     u.hash = "";

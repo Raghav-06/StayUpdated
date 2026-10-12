@@ -49,21 +49,23 @@ function parseSearchRequest(req) {
     maxAgeDays: clampInt(req.body.maxAgeDays, 1, 30, 7),
     urls: (urls ?? []).slice(0, 10).map(validateUrl),
   };
-  return { topic, params, force: req.body.force === true };
+  const { previousSearchId } = req.body;
+  if (previousSearchId !== undefined && !UUID_RE.test(previousSearchId)) throw httpError(400, "'previousSearchId' must be a search id");
+
+  return { topic, params, force: req.body.force === true, previousSearchId };
 }
 
 // Pipeline: discover -> fetch -> validate -> summarize (or a recent cached result), saved to the user's history.
 router.post("/search", async (req, res) => {
-  const { topic, params, force } = parseSearchRequest(req);
-  res.json(await runSearch({ userId: req.user.id, topic, params, force }));
+  res.json(await runSearch({ userId: req.user.id, ...parseSearchRequest(req) }));
 });
 
 // Same as /search, but reports progress as server-sent events while it works:
 // stage, provider, progress, summary (token deltas), then done (the saved result) or error.
 router.post("/search/stream", async (req, res) => {
-  const { topic, params, force } = parseSearchRequest(req); // invalid input still gets a normal 400
+  const search = parseSearchRequest(req); // invalid input still gets a normal 400
   await streamEvents(res, async (send, signal) => {
-    send("done", await runSearch({ userId: req.user.id, topic, params, force, onEvent: send, signal }));
+    send("done", await runSearch({ userId: req.user.id, ...search, onEvent: send, signal }));
   });
 });
 

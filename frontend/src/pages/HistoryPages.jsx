@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ResultView } from '../components/ResultView.jsx'
-import { ClockIcon, PlusIcon, TrashIcon } from '../components/icons.jsx'
+import { SearchProgress } from '../components/SearchProgress.jsx'
+import { ClockIcon, PlusIcon, RefreshIcon, TrashIcon } from '../components/icons.jsx'
 import { Alert, Button, Spinner } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
 import { formatDate, timeAgo } from '../lib/format.js'
 import { useHistory } from '../lib/history.jsx'
+import { useSearchStream } from '../lib/useSearchStream.js'
 
 const PAGE_SIZE = 20
 
@@ -108,7 +110,11 @@ export function HistoryDetail() {
   const { id } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const { remove } = useHistory()
+  const { remove, reload } = useHistory()
+  const { progress, start, cancel } = useSearchStream()
+  // Kept per search, so it doesn't follow the user to another page.
+  const [refreshFailure, setRefreshFailure] = useState({ id: null, message: '' })
+  const refreshError = refreshFailure.id === id ? refreshFailure.message : ''
   // A search that just finished arrives with its full result; otherwise load the saved copy.
   const fresh = location.state?.result?.id === id ? location.state.result : null
   const [loaded, setLoaded] = useState({ id: null, result: null, error: '' })
@@ -133,25 +139,50 @@ export function HistoryDetail() {
     navigate('/history', { replace: true })
   }
 
+  // Runs the same search again (skipping the cache) and marks what's new since this one.
+  async function handleRefresh() {
+    setRefreshFailure({ id: null, message: '' })
+    try {
+      const { urls = [], ...params } = result.params ?? {}
+      const data = await start({ topic: result.topic, ...params, urls, force: true, previousSearchId: id })
+      if (data.id) {
+        reload()
+        navigate(`/history/${data.id}`, { state: { result: data } })
+      } else setRefreshFailure({ id, message: data.message || 'Nothing new could be found right now.' })
+    } catch (err) {
+      if (err.name !== 'AbortError') setRefreshFailure({ id, message: err.message })
+    }
+  }
+
   return (
     <div className="page">
       <div className="page-toolbar">
         <Link to="/history" className="link-subtle">
           ← All searches
         </Link>
-        {result && (
-          <button className="btn btn-ghost danger" onClick={handleDelete}>
-            <TrashIcon width={16} height={16} /> Delete
-          </button>
+        {result && !progress && (
+          <div className="toolbar-actions">
+            <button className="btn btn-ghost" onClick={handleRefresh} title="Search this topic again and highlight new sources">
+              <RefreshIcon width={16} height={16} /> Refresh
+            </button>
+            <button className="btn btn-ghost danger" onClick={handleDelete}>
+              <TrashIcon width={16} height={16} /> Delete
+            </button>
+          </div>
         )}
       </div>
-      <Alert>{error}</Alert>
+      <Alert>{error || refreshError}</Alert>
+      {progress && (
+        <div className="page-body">
+          <SearchProgress progress={progress} onCancel={cancel} />
+        </div>
+      )}
       {!result && !error && (
         <div className="center pad">
           <Spinner size={26} />
         </div>
       )}
-      {result && <ResultView key={id} result={result} />}
+      {result && !progress && <ResultView key={id} result={result} />}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { formatDate, hostname, minutesAgo, timeAgo } from '../lib/format.js'
+import { formatDate, hostname, minutesAgo, shortDate, timeAgo } from '../lib/format.js'
 import { AlertIcon, BookIcon, ChatIcon, CheckIcon, ChevronIcon, ExternalIcon, NewsIcon, PlayIcon, SparkIcon } from './icons.jsx'
 import { Summary } from './Summary.jsx'
 
@@ -24,6 +24,11 @@ function SourceCard({ source, highlighted }) {
         </span>
         <span className="source-outlet">{source.source || hostname(source.url)}</span>
         {when && <span className="source-time">· {when}</span>}
+        {source.isNew && (
+          <span className="tag tag-new" title="Not in your previous search on this topic">
+            New
+          </span>
+        )}
       </div>
       <a className="source-title" href={source.url} target="_blank" rel="noopener noreferrer">
         {source.title || hostname(source.url)}
@@ -141,6 +146,18 @@ export function ResultView({ result }) {
             </span>
           )}
         </div>
+        {result.stats?.comparedTo && (
+          <p className="new-since">
+            {result.stats.comparedTo.newCount > 0 ? (
+              <>
+                <strong>{result.stats.comparedTo.newCount} new</strong>{' '}
+                {result.stats.comparedTo.newCount === 1 ? 'source' : 'sources'} since {shortDate(result.stats.comparedTo.createdAt)}
+              </>
+            ) : (
+              <>No new sources since {shortDate(result.stats.comparedTo.createdAt)}</>
+            )}
+          </p>
+        )}
       </header>
 
       <section className="panel summary-panel">
