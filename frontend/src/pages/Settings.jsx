@@ -88,7 +88,7 @@ function Preferences() {
     run(async () => updateUser((await api('/account', { method: 'PATCH', body: { preferences } })).user), message)
 
   return (
-    <Section title="Search defaults" description="Used for new searches. You can still change them per search.">
+    <Section title="Search & email" description="Your default region for new searches, and the daily email about topics you follow.">
       <Field label="Default region">
         <select
           className="input"
@@ -103,6 +103,24 @@ function Preferences() {
           ))}
         </select>
       </Field>
+      <div className="toggle-row">
+        <span>
+          <strong className="text-strong">Daily digest</strong>
+          <span className="muted small">One email a day with new stories on the topics you follow.</span>
+        </span>
+        <button
+          type="button"
+          role="switch"
+          className="switch"
+          aria-checked={user.preferences?.digestEnabled === true}
+          aria-label="Daily digest"
+          disabled={state.busy}
+          onClick={() => {
+            const on = user.preferences?.digestEnabled !== true
+            save({ digestEnabled: on }, on ? 'Daily digest turned on' : 'Daily digest turned off')
+          }}
+        />
+      </div>
       <Status state={state} />
     </Section>
   )

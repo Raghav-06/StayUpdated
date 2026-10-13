@@ -72,3 +72,34 @@ CREATE TABLE IF NOT EXISTS search_questions (
 );
 
 CREATE INDEX IF NOT EXISTS search_questions_search_idx ON search_questions (search_id, created_at);
+
+-- Topics a user follows; the daily digest emails what's new on them.
+CREATE TABLE IF NOT EXISTS followed_topics (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  topic           TEXT NOT NULL,
+  region          TEXT NOT NULL,
+  params          JSONB NOT NULL DEFAULT '{}',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_checked_at TIMESTAMPTZ,
+  last_search_id  UUID REFERENCES news_searches(id) ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS followed_topics_user_topic_idx ON followed_topics (user_id, lower(topic), region);
+
+-- Source URLs (hashed) already sent for a followed topic, so a digest only has new ones. Pruned after 30 days.
+CREATE TABLE IF NOT EXISTS followed_seen_urls (
+  followed_topic_id UUID NOT NULL REFERENCES followed_topics(id) ON DELETE CASCADE,
+  url_hash          TEXT NOT NULL,
+  first_seen_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (followed_topic_id, url_hash)
+);
+
+CREATE INDEX IF NOT EXISTS followed_seen_urls_age_idx ON followed_seen_urls (first_seen_at);
+
+-- Small key/value store for app-wide state (e.g. when the last full digest run finished).
+CREATE TABLE IF NOT EXISTS app_state (
+  key        TEXT PRIMARY KEY,
+  value      JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

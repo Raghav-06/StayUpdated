@@ -9,6 +9,7 @@ import { chatWithAgent, resumeAgent } from "../agents/cityAgent.js";
 import { getGreeting } from "../tools/greeting.js";
 import accountRouter from "./account.js";
 import authRouter from "./auth.js";
+import followsRouter from "./follows.js";
 import newsRouter from "./news.js";
 import publicRouter from "./public.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -19,6 +20,7 @@ const router = Router();
 
 router.use("/auth", authRouter);
 router.use("/account", accountRouter);
+router.use("/follows", followsRouter);
 router.use("/news", newsRouter);
 router.use("/public", publicRouter);
 

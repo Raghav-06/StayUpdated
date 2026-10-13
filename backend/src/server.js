@@ -1,6 +1,7 @@
 import "dotenv/config";
 import app from "./app.js";
 import { migrate } from "./db/index.js";
+import { startDigestScheduler } from "./digest/scheduler.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -16,6 +17,7 @@ if (process.env.DATABASE_URL) {
   try {
     await migrate();
     console.log("Database schema is up to date");
+    startDigestScheduler();
   } catch (err) {
     console.error(`Could not reach the database (${err.code ?? err.message}): sign-in, sign-up and history will fail until PostgreSQL is running`);
   }

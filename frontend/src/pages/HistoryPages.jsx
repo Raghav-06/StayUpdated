@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { AskBox } from '../components/AskBox.jsx'
+import { FollowButton } from '../components/FollowButton.jsx'
 import { ResultView } from '../components/ResultView.jsx'
 import { SearchProgress } from '../components/SearchProgress.jsx'
 import { ShareMenu } from '../components/ShareMenu.jsx'
@@ -164,6 +165,7 @@ export function HistoryDetail() {
         </Link>
         {result && !progress && (
           <div className="toolbar-actions">
+            <FollowButton result={result} />
             <ShareMenu key={id} result={result} />
             <button className="btn btn-ghost" onClick={handleRefresh} title="Search this topic again and highlight new sources">
               <RefreshIcon width={16} height={16} /> Refresh

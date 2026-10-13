@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "check": "node scripts/check-setup.js"
+    "check": "node scripts/check-setup.js",
+    "digest": "node scripts/digest.js"
   },
   "engines": {
     "node": ">=20"
@@ -27,6 +28,7 @@
     "google-auth-library": "^11.1.0",
     "jsonwebtoken": "^9.0.3",
     "linkedom": "^0.18.13",
+    "node-cron": "^4.6.0",
     "nodemailer": "^10.0.13",
     "pg": "^8.23.1",
     "zod": "^4.6.5"

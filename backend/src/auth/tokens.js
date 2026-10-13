@@ -3,6 +3,7 @@ import { httpError } from "../utils/httpError.js";
 
 const ACCESS_TOKEN_TTL = process.env.JWT_EXPIRES_IN || "7d";
 const SETUP_TOKEN_TTL = "15m";
+const UNSUBSCRIBE_TOKEN_TTL = "90d";
 
 function secret() {
   const value = process.env.JWT_SECRET;
@@ -21,6 +22,11 @@ export function signAccessToken(user) {
 
 export function signSetupToken(verificationId, email) {
   return jwt.sign({ typ: "setup", email }, secret(), { subject: verificationId, expiresIn: SETUP_TOKEN_TTL });
+}
+
+// Goes in digest emails: turns the digest off without signing in.
+export function signUnsubscribeToken(userId) {
+  return jwt.sign({ typ: "unsubscribe" }, secret(), { subject: userId, expiresIn: UNSUBSCRIBE_TOKEN_TTL });
 }
 
 // `typ` may be a single token type or a list of accepted types.

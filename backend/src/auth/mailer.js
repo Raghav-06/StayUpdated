@@ -16,15 +16,16 @@ function getTransport() {
   return transport;
 }
 
-async function send({ to, subject, text }) {
+async function send({ to, subject, text, html, headers }) {
   const t = getTransport();
   if (!t) {
     // Development fallback so the flow can be tested without an SMTP account.
+    // Only the plain-text body is printed; the HTML version would flood the console.
     if (process.env.NODE_ENV === "production") throw httpError(500, "SMTP is not configured");
     console.log(`\n[mail:dev] To: ${to}\n[mail:dev] Subject: ${subject}\n${text}\n`);
     return;
   }
-  await t.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to, subject, text });
+  await t.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to, subject, text, html, headers });
 }
 
 export function sendVerificationCode(to, code) {
@@ -46,5 +47,17 @@ export function sendAlreadyRegistered(to) {
     text:
       "Someone (hopefully you) tried to sign up with this email, but it already has an account.\n\n" +
       "Log in with your password, or use 'Forgot password' to reset it. If this wasn't you, ignore this email.",
+  });
+}
+
+// The daily digest, with an HTML and a plain-text body. `unsubscribeUrl` also goes in the
+// List-Unsubscribe header so mail apps can show their own unsubscribe button.
+export function sendDigest(to, html, text, { subject = "Your StayUpdated digest", unsubscribeUrl } = {}) {
+  return send({
+    to,
+    subject,
+    text,
+    html,
+    headers: unsubscribeUrl ? { "List-Unsubscribe": `<${unsubscribeUrl}>` } : undefined,
   });
 }

@@ -501,6 +501,10 @@ select.input { cursor: pointer; }
   color: var(--faint);
 }
 .sidebar-heading .small { text-transform: none; letter-spacing: 0; }
+.sidebar-following { flex: 0 1 auto; max-height: 34%; }
+.following-item .history-topic { display: flex; align-items: center; gap: 7px; }
+.following-item .history-topic svg { flex-shrink: 0; color: var(--accent-2); }
+.btn-ghost.following { color: var(--success); }
 .history-list { overflow-y: auto; display: flex; flex-direction: column; gap: 2px; margin: 0 -4px; padding: 0 4px; }
 .sidebar-empty { padding: 12px 8px; }
 .history-item {
@@ -955,6 +959,8 @@ input[type='range'] { accent-color: var(--accent); width: 100%; margin: 10px 0 0
 .switch[aria-checked='true'] { background: var(--accent); border-color: var(--accent); }
 .switch[aria-checked='true']::after { transform: translateX(18px); background: #fff; }
 .switch:disabled { opacity: 0.6; cursor: wait; }
+
+.following-intro { margin: -12px 0 20px; }
 
 /* ============ Menus ============ */
 .menu-wrap { position: relative; }

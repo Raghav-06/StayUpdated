@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/auth.jsx'
 import { timeAgo } from '../lib/format.js'
+import { FollowsProvider, useFollows } from '../lib/follows.jsx'
 import { HistoryProvider, useHistory } from '../lib/history.jsx'
-import { ClockIcon, CloseIcon, Logo, LogoutIcon, MenuIcon, PanelIcon, PlusIcon, SettingsIcon } from './icons.jsx'
+import { BellIcon, ClockIcon, CloseIcon, Logo, LogoutIcon, MenuIcon, PanelIcon, PlusIcon, SettingsIcon } from './icons.jsx'
 import { Spinner } from './ui.jsx'
 
 export function Avatar({ user }) {
@@ -16,6 +17,31 @@ export function Avatar({ user }) {
 }
 
 const COLLAPSED_KEY = 'su_sidebar_collapsed'
+
+// Followed topics, each linking to its latest search. Hidden until the user follows something.
+function FollowingSection() {
+  const { follows } = useFollows()
+  if (!follows.length) return null
+  return (
+    <div className="sidebar-section sidebar-following">
+      <div className="sidebar-heading">
+        <span>Following</span>
+        <Link to="/following" className="link-subtle small">
+          Manage
+        </Link>
+      </div>
+      <nav className="history-list">
+        {follows.map((f) => (
+          <NavLink key={f.id} to={f.last_search_id ? `/history/${f.last_search_id}` : '/following'} end className="history-item following-item">
+            <span className="history-topic">
+              <BellIcon width={13} height={13} /> {f.topic}
+            </span>
+          </NavLink>
+        ))}
+      </nav>
+    </div>
+  )
+}
 
 function Sidebar({ open, onClose, onCollapse }) {
   const { user, signOut } = useAuth()
@@ -41,6 +67,8 @@ function Sidebar({ open, onClose, onCollapse }) {
         <Link to="/" className="btn btn-secondary btn-block new-search">
           <PlusIcon /> New search
         </Link>
+
+        <FollowingSection />
 
         <div className="sidebar-section">
           <div className="sidebar-heading">
@@ -140,7 +168,9 @@ function Shell() {
 export default function AppLayout() {
   return (
     <HistoryProvider>
-      <Shell />
+      <FollowsProvider>
+        <Shell />
+      </FollowsProvider>
     </HistoryProvider>
   )
 }
