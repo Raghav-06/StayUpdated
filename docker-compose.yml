@@ -1,0 +1,53 @@
+# Postgres, the backend and the frontend dev server.
+#   docker compose up            everything (needs backend/.env, see backend/.env.example)
+#   docker compose up db         just Postgres, for running the app with `npm run dev`
+# Set DB_PORT if 5432 is already taken on your machine, e.g. DB_PORT=5433 docker compose up db
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: stayupdated
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d stayupdated"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    env_file:
+      - path: backend/.env
+        required: false # so `docker compose up db` works before .env exists
+    environment:
+      # Always talk to the db service, whatever DATABASE_URL says in backend/.env.
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/stayupdated
+      DATABASE_SSL: "false"
+      PORT: "5000"
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev -- --host"
+    environment:
+      VITE_BACKEND_URL: http://backend:5000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # the container's own Linux node_modules, not the host's
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
