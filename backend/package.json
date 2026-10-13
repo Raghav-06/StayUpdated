@@ -8,7 +8,8 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "check": "node scripts/check-setup.js",
-    "digest": "node scripts/digest.js"
+    "digest": "node scripts/digest.js",
+    "test": "vitest run"
   },
   "engines": {
     "node": ">=20"
@@ -32,5 +33,9 @@
     "nodemailer": "^10.0.13",
     "pg": "^8.23.1",
     "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "supertest": "^7.3.1",
+    "vitest": "^4.1.11"
   }
 }
