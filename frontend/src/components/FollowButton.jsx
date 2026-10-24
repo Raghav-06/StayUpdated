@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api.js'
-import { useFollows } from '../lib/follows.jsx'
+import { useFollows } from '../lib/useFollows.js'
 import { preferredRegion } from '../lib/regions.js'
-import { useAuth } from '../lib/auth.jsx'
+import { useAuth } from '../lib/useAuth.js'
 import { BellIcon, CheckIcon } from './icons.jsx'
 
 /** "Follow" / "Following ✓" for a saved search's topic and region. */

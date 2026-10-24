@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Avatar } from '../components/AppLayout.jsx'
 import { GoogleLogo, LogoutIcon, TrashIcon } from '../components/icons.jsx'
-import { Alert, Button, Field, PasswordInput, passwordIsValid } from '../components/ui.jsx'
+import { Alert, Button, Field, PasswordInput } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
-import { useAuth } from '../lib/auth.jsx'
+import { passwordIsValid } from '../lib/password.js'
 import { preferredRegion, REGIONS } from '../lib/regions.js'
+import { useAuth } from '../lib/useAuth.js'
 
 // Runs a settings action and keeps its own busy / success / error state.
 function useAction() {

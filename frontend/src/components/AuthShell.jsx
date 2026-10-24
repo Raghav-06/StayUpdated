@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { googleSignInUrl } from '../lib/api.js'
-import { useAuth } from '../lib/auth.jsx'
+import { useAuth } from '../lib/useAuth.js'
 import { ChatIcon, GoogleLogo, Logo, NewsIcon, PlayIcon, SparkIcon } from './icons.jsx'
 
 const FEATURES = [

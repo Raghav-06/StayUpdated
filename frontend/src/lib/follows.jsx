@@ -1,7 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from './api.js'
-
-const FollowsContext = createContext(null)
+import { FollowsContext } from './useFollows.js'
 
 const sameTopic = (a, b) => a.trim().replace(/\s+/g, ' ').toLowerCase() === b.trim().replace(/\s+/g, ' ').toLowerCase()
 
@@ -37,6 +36,8 @@ export function FollowsProvider({ children }) {
   )
 
   useEffect(() => {
+    // Fetching on mount syncs with the server, which is what effects are for.
+    // oxlint-disable-next-line react/set-state-in-effect
     reload()
   }, [reload])
 
@@ -45,8 +46,4 @@ export function FollowsProvider({ children }) {
     [follows, loading, reload, follow, unfollow, findFollow],
   )
   return <FollowsContext.Provider value={value}>{children}</FollowsContext.Provider>
-}
-
-export function useFollows() {
-  return useContext(FollowsContext)
 }

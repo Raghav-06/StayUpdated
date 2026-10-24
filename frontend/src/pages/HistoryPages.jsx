@@ -9,7 +9,7 @@ import { ClockIcon, PlusIcon, RefreshIcon, TrashIcon } from '../components/icons
 import { Alert, Button, Spinner } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
 import { formatDate, timeAgo } from '../lib/format.js'
-import { useHistory } from '../lib/history.jsx'
+import { useHistory } from '../lib/useHistory.js'
 import { useSearchStream } from '../lib/useSearchStream.js'
 
 const PAGE_SIZE = 20
@@ -35,6 +35,8 @@ export function HistoryList() {
   }
 
   useEffect(() => {
+    // Fetching on mount syncs with the server, which is what effects are for.
+    // oxlint-disable-next-line react/set-state-in-effect
     load(0)
   }, [])
 

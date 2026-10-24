@@ -4,7 +4,7 @@ import { ResultView } from '../components/ResultView.jsx'
 import { Logo } from '../components/icons.jsx'
 import { Alert, Spinner } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
-import { useAuth } from '../lib/auth.jsx'
+import { useAuth } from '../lib/useAuth.js'
 
 /** Public, read-only view of a search someone shared (/s/:shareId). Works signed in or out. */
 export default function SharedSearch() {

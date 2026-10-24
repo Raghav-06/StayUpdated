@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AuthShell, Divider, GoogleButton } from '../components/AuthShell.jsx'
 import { Alert, Button, Field, PasswordInput } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
-import { useAuth } from '../lib/auth.jsx'
+import { useAuth } from '../lib/useAuth.js'
 
 export default function Login() {
   const { signIn } = useAuth()

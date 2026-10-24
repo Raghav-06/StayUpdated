@@ -1,7 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from './api.js'
-
-const HistoryContext = createContext(null)
+import { HistoryContext } from './useHistory.js'
 
 // Recent searches for the sidebar; reloaded after each new search or delete.
 export function HistoryProvider({ children }) {
@@ -25,13 +24,11 @@ export function HistoryProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    // Fetching on mount syncs with the server, which is what effects are for.
+    // oxlint-disable-next-line react/set-state-in-effect
     reload()
   }, [reload])
 
   const value = useMemo(() => ({ searches, loading, reload, remove }), [searches, loading, reload, remove])
   return <HistoryContext.Provider value={value}>{children}</HistoryContext.Provider>
-}
-
-export function useHistory() {
-  return useContext(HistoryContext)
 }

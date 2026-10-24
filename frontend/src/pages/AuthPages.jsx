@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { AuthShell, Divider, GoogleButton } from '../components/AuthShell.jsx'
 import { EmailCodeFlow } from '../components/EmailCodeFlow.jsx'
 import { Spinner } from '../components/ui.jsx'
-import { useAuth } from '../lib/auth.jsx'
+import { useAuth } from '../lib/useAuth.js'
 
 export function Signup() {
   return (

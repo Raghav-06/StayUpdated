@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api.js'
-import { useAuth } from '../lib/auth.jsx'
+import { passwordIsValid } from '../lib/password.js'
+import { useAuth } from '../lib/useAuth.js'
 import { CodeInput } from './CodeInput.jsx'
-import { Alert, Button, Field, PasswordInput, passwordIsValid } from './ui.jsx'
+import { Alert, Button, Field, PasswordInput } from './ui.jsx'
 
 const RESEND_SECONDS = 60
 

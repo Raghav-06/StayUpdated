@@ -1,3 +1,5 @@
+// Every export here is a component (make() returns one); the rule just can't see through make().
+/* oxlint-disable react/only-export-components */
 const base = {
   width: 18,
   height: 18,
