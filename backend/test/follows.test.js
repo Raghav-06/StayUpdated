@@ -80,9 +80,23 @@ describe.skipIf(!hasDb)("followed topics and the daily digest", () => {
     await api().get(`/api/follows/unsubscribe?token=${signAccessToken(user)}`).expect(400);
     await api().get("/api/follows/unsubscribe?token=garbage").expect(400);
 
-    const res = await api().get(`/api/follows/unsubscribe?token=${signUnsubscribeToken(user.id)}`).expect(200);
-    expect(res.headers["content-type"]).toMatch(/html/);
+    const token = signUnsubscribeToken(user.id);
+    const digestEnabled = async () => (await api().get("/api/auth/me").set(auth)).body.user.preferences.digestEnabled;
+
+    // Opening the link (as email security scanners do) only shows a confirm button.
+    const confirm = await api().get(`/api/follows/unsubscribe?token=${token}`).expect(200);
+    expect(confirm.headers["content-type"]).toMatch(/html/);
+    expect(confirm.text).toContain('method="post"');
+    expect(await digestEnabled()).toBe(true);
+
+    // Clicking it, or a mail app's one-click POST, unsubscribes.
+    await api().post(`/api/follows/unsubscribe?token=garbage`).expect(400);
+    const res = await api()
+      .post(`/api/follows/unsubscribe?token=${token}`)
+      .type("form")
+      .send("List-Unsubscribe=One-Click")
+      .expect(200);
     expect(res.text).toContain("unsubscribed");
-    expect((await api().get("/api/auth/me").set(auth)).body.user.preferences.digestEnabled).toBe(false);
+    expect(await digestEnabled()).toBe(false);
   });
 });

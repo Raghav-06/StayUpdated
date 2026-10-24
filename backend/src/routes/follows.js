@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { verifyToken } from "../auth/tokens.js";
 import { query } from "../db/index.js";
@@ -14,25 +14,49 @@ const router = Router();
 const MAX_FOLLOWS = 10;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function page(title, message) {
+// `extraHtml` must already be safe HTML (it is never built from user input).
+function page(title, message, extraHtml = "") {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)} · StayUpdated</title></head>
 <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#07080d;color:#e8eaf2;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;">
 <main style="max-width:420px;padding:32px;text-align:center;">
 <div style="font-weight:700;color:#a78bfa;letter-spacing:.06em;">StayUpdated</div>
 <h1 style="font-size:22px;color:#fff;">${escapeHtml(title)}</h1>
-<p style="color:#8b90a5;line-height:1.6;">${escapeHtml(message)}</p>
+<p style="color:#8b90a5;line-height:1.6;">${escapeHtml(message)}</p>${extraHtml}
 </main></body></html>`;
 }
 
-// Linked from every digest email; works without signing in. Turns the daily digest off.
-router.get("/unsubscribe", async (req, res) => {
-  let userId;
+const EXPIRED = ["Link expired", "This unsubscribe link is invalid or has expired. You can turn the digest off in Settings."];
+
+function unsubscribeUserId(token) {
   try {
-    userId = verifyToken(String(req.query.token ?? ""), "unsubscribe").sub;
+    return verifyToken(String(token ?? ""), "unsubscribe").sub;
   } catch {
-    return res.status(400).type("html").send(page("Link expired", "This unsubscribe link is invalid or has expired. You can turn the digest off in Settings."));
+    return null;
   }
+}
+
+// Linked from every digest email; works without signing in. Opening the link only shows a
+// confirm button: email security scanners open every link in a message, and a GET that
+// unsubscribed would silently turn the digest off for people who never clicked.
+router.get("/unsubscribe", (req, res) => {
+  if (!unsubscribeUserId(req.query.token)) return res.status(400).type("html").send(page(...EXPIRED));
+  const action = `?token=${encodeURIComponent(String(req.query.token))}`;
+  res.type("html").send(
+    page(
+      "Unsubscribe from the daily digest?",
+      "You'll stop getting emails about the topics you follow. You can turn the digest back on any time in Settings.",
+      `<form method="post" action="${escapeHtml(action)}" style="margin-top:20px;">
+<button type="submit" style="font:inherit;font-weight:600;color:#fff;background:#7c3aed;border:0;border-radius:8px;padding:10px 18px;cursor:pointer;">Unsubscribe</button>
+</form>`
+    )
+  );
+});
+
+// The confirm button above, and one-click unsubscribe from mail apps (RFC 8058 List-Unsubscribe-Post).
+router.post("/unsubscribe", express.urlencoded({ extended: false }), async (req, res) => {
+  const userId = unsubscribeUserId(req.query.token);
+  if (!userId) return res.status(400).type("html").send(page(...EXPIRED));
   await query(
     `UPDATE users SET preferences = preferences || '{"digestEnabled": false}'::jsonb, updated_at = now() WHERE id = $1`,
     [userId]

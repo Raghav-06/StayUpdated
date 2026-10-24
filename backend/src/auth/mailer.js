@@ -58,6 +58,9 @@ export function sendDigest(to, html, text, { subject = "Your StayUpdated digest"
     subject,
     text,
     html,
-    headers: unsubscribeUrl ? { "List-Unsubscribe": `<${unsubscribeUrl}>` } : undefined,
+    // List-Unsubscribe-Post lets mail apps unsubscribe with one POST (RFC 8058), without opening the page.
+    headers: unsubscribeUrl
+      ? { "List-Unsubscribe": `<${unsubscribeUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }
+      : undefined,
   });
 }
